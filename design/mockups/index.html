@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moss · Mockup gallery</title>
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="assets/theme.js"></script>
+  <style>
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 24px 60px; }
+    a.card { text-decoration: none; color: inherit; display: block; transition: transform .15s ease, border-color .15s; }
+    a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    h2 { font-family: var(--font-display); font-weight: 600; margin: 28px 0 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 8px 6px; border-bottom: 1px dashed var(--border); vertical-align: top; }
+    th { font-size: 12px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row">
+    <div class="brand-mark">M</div>
+    <div>
+      <div class="brand-name">Moss mockups</div>
+      <div class="faint">Static HTML concepts to pick a direction before building in Refine.</div>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn icon-btn" data-toggle-mute title="Mute voice"><i data-mute-icon data-lucide="volume-2"></i></button>
+    <button class="btn" data-toggle-theme><i data-theme-icon data-lucide="sun"></i> <span data-theme-label>Notebook</span></button>
+  </div>
+
+  <h2>Manager concepts</h2>
+  <div class="grid g3">
+    <a class="card" href="manager-a-command-grove.html"><h3>A · Command Grove</h3><div class="muted">Dashboard with an approval queue for meeting-driven actions (Jira, Slack, Calendar), plus a live “Whispers” rail of spoken status updates.</div><div style="margin-top:8px"><span class="badge ok">actions first</span></div></a>
+    <a class="card" href="manager-b-account-story.html"><h3>B · Account Story</h3><div class="muted">One customer, one page: an AI summary, a unified timeline across all tools, a knowledge-graph view and suggested next steps.</div><div style="margin-top:8px"><span class="badge info">customer first</span></div></a>
+    <a class="card" href="manager-c-oak-chat.html"><h3>C · Ask Elder Oak</h3><div class="muted">Chat first. Shows how the orchestrator delegates to sub-agents and which memory layers it used, with cited answers and one-click actions.</div><div style="margin-top:8px"><span class="badge warn">conversation first</span></div></a>
+  </div>
+
+  <h2>Employee concepts</h2>
+  <div class="grid g2">
+    <a class="card" href="employee-a-burrow.html"><h3>A · My Burrow</h3><div class="muted">Personal workbench: commitments extracted from meetings, today's schedule and an “ask a helper” box scoped to sub-agents.</div></a>
+    <a class="card" href="employee-b-clearing.html"><h3>B · The Clearing</h3><div class="muted">Search-first landing page with agent cards. Minimal and easy to adopt. Elder Oak is visibly locked.</div></a>
+  </div>
+
+  <h2>Proposed Enchanted Grove names <span class="mock-note">draft, please confirm</span></h2>
+  <div class="card">
+    <table>
+      <tr><th>Name</th><th>Role</th><th>Why</th></tr>
+      <tr><td><i data-lucide="tree-deciduous"></i> <b>Elder Oak</b></td><td>Master orchestrator</td><td>The oldest tree in the grove that sees everything and delegates.</td></tr>
+      <tr><td><i data-lucide="bird"></i> <b>Wren</b></td><td>Gmail and Calendar</td><td>A messenger bird that carries letters and keeps time.</td></tr>
+      <tr><td><i data-lucide="squirrel"></i> <b>Chitter</b></td><td>Slack</td><td>A chatty squirrel darting between branches (channels).</td></tr>
+      <tr><td><i data-lucide="bug"></i> <b>Beetle</b></td><td>Jira</td><td>A diligent builder that tracks bugs and tickets.</td></tr>
+      <tr><td><i data-lucide="rabbit"></i> <b>Longear</b></td><td>Zoom meetings</td><td>A hare with big ears that listens to every meeting and takes notes.</td></tr>
+      <tr><td><i data-lucide="turtle"></i> <b>Lorekeeper</b></td><td>Confluence</td><td>An ancient tortoise that keeps the written lore.</td></tr>
+      <tr><td><i data-lucide="droplet"></i> <b>Dew</b></td><td>Memory 1: cache</td><td>Fresh and short-lived; evaporates on its TTL.</td></tr>
+      <tr><td><i data-lucide="network"></i> <b>Mycelium</b></td><td>Memory 2: knowledge graph</td><td>The underground network connecting every tree.</td></tr>
+      <tr><td><i data-lucide="mountain"></i> <b>Bedrock</b></td><td>Memory 3: SQLite</td><td>The durable record everything rests on.</td></tr>
+    </table>
+  </div>
+
+  <p class="faint" style="margin-top:20px">Voice: in these mockups, “Simulate update” uses your browser's built-in speech engine as a stand-in for ElevenLabs. Mute is remembered per browser.</p>
+</div>
+</body>
+</html>

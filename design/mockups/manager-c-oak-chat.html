@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moss · Manager C · Ask Elder Oak</title>
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="assets/theme.js"></script>
+  <style>
+    .chat { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 120px; }
+    .trace { border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+    .trace .step { display: flex; gap: 8px; align-items: center; padding: 3px 0; color: var(--ink-soft); }
+    .trace .step svg { width: 15px; height: 15px; }
+    .composer { position: fixed; bottom: 0; left: 240px; right: 360px; padding: 16px 28px 22px; background: linear-gradient(transparent, var(--bg) 35%); }
+    .composer .inner { max-width: 820px; margin: 0 auto; }
+    @media (max-width: 1100px) { .composer { right: 0; left: 220px; } }
+  </style>
+</head>
+<body>
+<div class="app three">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Moss</div><div class="brand-role">Manager</div></div>
+    </div>
+    <a class="nav-item active"><i data-lucide="tree-deciduous"></i> Ask Elder Oak</a>
+    <a class="nav-item"><i data-lucide="inbox"></i> Proposals <span class="badge warn">5</span></a>
+    <a class="nav-item"><i data-lucide="building-2"></i> Accounts</a>
+    <div class="nav-label">Recent threads</div>
+    <a class="nav-item">Acme last month</a>
+    <a class="nav-item">Payroll-interested customers</a>
+    <a class="nav-item">Sprint 14 risks</a>
+    <div class="spacer"></div>
+    <a class="nav-item" href="index.html"><i data-lucide="arrow-left"></i> All mockups</a>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 class="page-title">Ask Elder Oak</h1>
+      <div class="spacer"></div>
+      <button class="btn icon-btn" data-toggle-mute><i data-mute-icon data-lucide="volume-2"></i></button>
+      <button class="btn" data-toggle-theme><i data-theme-icon data-lucide="sun"></i> <span data-theme-label>Notebook</span></button>
+    </div>
+
+    <div class="chat">
+      <div class="bubble me">Show me all customers interested in payroll integration, and what's still open with each.</div>
+
+      <div class="trace">
+        <div class="faint" style="margin-bottom:4px">Elder Oak planned 4 steps · 2.1s</div>
+        <div class="step"><i data-lucide="droplet"></i> Dew (cache): no fresh answer, continuing</div>
+        <div class="step"><i data-lucide="network"></i> Mycelium: 4 accounts linked to the topic “payroll integration”</div>
+        <div class="step"><i data-lucide="bird"></i> Wren searched email threads · <i data-lucide="rabbit"></i> Longear searched 9 transcripts</div>
+        <div class="step"><i data-lucide="bug"></i> Beetle pulled 3 linked Jira issues</div>
+      </div>
+
+      <div class="bubble">
+        Four customers have shown interest in payroll integration in the last 60 days:
+        <ol style="margin:8px 0;padding-left:18px">
+          <li><b>Acme Payroll</b>: pilot starts Oct 14. Open: SSO answer to Jordan (6 days overdue).</li>
+          <li><b>Globex</b>: asked about ADP sync on the Sep 30 call. Open: send API docs (owner Sam).</li>
+          <li><b>Umbrella HR</b>: mentioned in #sales-leads. Open: no discovery call booked yet.</li>
+          <li><b>Initech</b>: raised it once in June. No open commitments.</li>
+        </ol>
+        <span class="cite">Zoom · Acme Sep 12</span><span class="cite">Zoom · Globex Sep 30</span><span class="cite">Slack #sales-leads</span><span class="cite">PLAT-204</span>
+      </div>
+
+      <div class="card proposal">
+        <div class="row"><i data-lucide="sparkles"></i><b>Elder Oak suggests</b></div>
+        <div class="list" style="margin-top:6px">
+          <div class="list-item"><i data-lucide="bird"></i><div style="flex:1">Email Jordan at Acme about SSO (draft ready)</div><button class="btn sm primary">Approve</button></div>
+          <div class="list-item"><i data-lucide="squirrel"></i><div style="flex:1">Remind Sam on Slack to send Globex the API docs</div><button class="btn sm primary">Approve</button></div>
+          <div class="list-item"><i data-lucide="calendar"></i><div style="flex:1">Book a discovery call with Umbrella HR next week</div><button class="btn sm">Edit</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="inner">
+        <div class="row" style="flex-wrap:wrap;margin-bottom:8px">
+          <span class="chip on" data-toggle><i data-lucide="tree-deciduous"></i> Elder Oak decides</span>
+          <span class="chip" data-toggle><i data-lucide="bird"></i> Wren</span>
+          <span class="chip" data-toggle><i data-lucide="squirrel"></i> Chitter</span>
+          <span class="chip" data-toggle><i data-lucide="bug"></i> Beetle</span>
+          <span class="chip" data-toggle><i data-lucide="rabbit"></i> Longear</span>
+          <span class="chip" data-toggle><i data-lucide="turtle"></i> Lorekeeper</span>
+        </div>
+        <div class="row">
+          <input class="input" placeholder="What are the open commitments for Globex?" />
+          <button class="btn icon-btn" title="Voice input"><i data-lucide="mic"></i></button>
+          <button class="btn primary" aria-label="Send"><i data-lucide="send"></i></button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="rail">
+    <b>Context Elder Oak used</b>
+    <p class="faint">Sources, entities and memory layers for this answer.</p>
+    <div class="stack">
+      <div class="card"><div class="row"><i data-lucide="droplet"></i><b>Dew</b><span class="faint">cache</span></div><div class="faint">miss · result cached 15 min</div></div>
+      <div class="card"><div class="row"><i data-lucide="network"></i><b>Mycelium</b><span class="faint">knowledge graph</span></div><div class="faint">4 accounts · 7 people · 3 issues · 2 hops</div></div>
+      <div class="card"><div class="row"><i data-lucide="mountain"></i><b>Bedrock</b><span class="faint">SQLite</span></div><div class="faint">9 transcripts · 14 emails · 6 Slack threads</div></div>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

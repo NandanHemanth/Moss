@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moss · Manager A · Command Grove</title>
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="assets/theme.js"></script>
+</head>
+<body>
+<div class="app three">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Moss</div><div class="brand-role">Manager</div></div>
+    </div>
+    <a class="nav-item active"><i data-lucide="layout-dashboard"></i> Command Grove</a>
+    <a class="nav-item"><i data-lucide="inbox"></i> Proposals <span class="badge warn">5</span></a>
+    <a class="nav-item"><i data-lucide="building-2"></i> Accounts</a>
+    <a class="nav-item"><i data-lucide="network"></i> Mycelium graph</a>
+    <a class="nav-item"><i data-lucide="list-checks"></i> Commitments</a>
+    <div class="nav-label">Agents</div>
+    <a class="nav-item"><i data-lucide="tree-deciduous"></i> Elder Oak <span class="badge ok">lead</span></a>
+    <a class="nav-item"><i data-lucide="bird"></i> Wren <span class="faint" style="margin-left:auto">mail · cal</span></a>
+    <a class="nav-item"><i data-lucide="squirrel"></i> Chitter <span class="faint" style="margin-left:auto">slack</span></a>
+    <a class="nav-item"><i data-lucide="bug"></i> Beetle <span class="faint" style="margin-left:auto">jira</span></a>
+    <a class="nav-item"><i data-lucide="rabbit"></i> Longear <span class="faint" style="margin-left:auto">zoom</span></a>
+    <a class="nav-item"><i data-lucide="turtle"></i> Lorekeeper <span class="faint" style="margin-left:auto">wiki</span></a>
+    <div class="spacer"></div>
+    <a class="nav-item" href="index.html"><i data-lucide="arrow-left"></i> All mockups</a>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 class="page-title">Good afternoon, Dana</h1>
+        <p class="page-sub">3 meetings captured today · 5 actions waiting for you</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn icon-btn" data-toggle-mute title="Mute voice"><i data-mute-icon data-lucide="volume-2"></i></button>
+      <button class="btn" data-toggle-theme><i data-theme-icon data-lucide="sun"></i> <span data-theme-label>Notebook</span></button>
+      <button class="btn primary" onclick="Moss.notify('Longear finished the Platform Sync transcript. Three follow-ups are ready for review.','Longear')"><i data-lucide="bell-ring"></i> Simulate update</button>
+    </div>
+
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="card kpi"><div class="num">5</div><div class="lbl">Actions awaiting approval</div></div>
+      <div class="card kpi"><div class="num">12</div><div class="lbl">Open commitments this week</div></div>
+      <div class="card kpi"><div class="num">2</div><div class="lbl">Risks flagged</div></div>
+      <div class="card kpi"><div class="num">148</div><div class="lbl">New facts in the graph today</div></div>
+    </div>
+
+    <div class="card proposal" style="margin-bottom:16px">
+      <div class="row" style="margin-bottom:6px">
+        <i data-lucide="rabbit"></i>
+        <h3 style="margin:0">From “Platform Sync” (Zoom, 2:00 PM, 42 min)</h3>
+        <span class="spacer"></span>
+        <span class="badge info">decision detected</span>
+      </div>
+      <p class="muted" style="margin:4px 0 12px">
+        The team agreed to <mark>move the summarisation endpoint from Claude to OpenAI</mark> behind a provider flag.
+        Priya owns the backend change; Marcus will update the load tests. Target: end of next sprint.
+      </p>
+      <div class="stack">
+        <div class="card proposal jira">
+          <div class="row"><i data-lucide="bug"></i><b>Beetle</b><span class="faint">proposes a Jira ticket</span><span class="spacer"></span><span class="badge">PLAT board</span></div>
+          <div style="margin:6px 0">“Add OpenAI provider to /v1/summarise behind LLM_PROVIDER flag” · assignee Priya · story points 5</div>
+          <div class="row"><button class="btn sm primary"><i data-lucide="check"></i> Approve</button><button class="btn sm"><i data-lucide="pencil"></i> Edit</button><button class="btn sm ghost">Dismiss</button></div>
+        </div>
+        <div class="card proposal slack">
+          <div class="row"><i data-lucide="squirrel"></i><b>Chitter</b><span class="faint">proposes a Slack message</span><span class="spacer"></span><span class="badge">#platform-eng</span></div>
+          <div style="margin:6px 0">“@Priya @Marcus: summary + ticket from today’s sync are linked here. Kickoff Tuesday 10am.”</div>
+          <div class="row"><button class="btn sm primary"><i data-lucide="check"></i> Approve</button><button class="btn sm"><i data-lucide="pencil"></i> Edit</button><button class="btn sm ghost">Dismiss</button></div>
+        </div>
+        <div class="card proposal cal">
+          <div class="row"><i data-lucide="bird"></i><b>Wren</b><span class="faint">proposes a calendar event</span><span class="spacer"></span><span class="badge">Tue 10:00–10:30</span></div>
+          <div style="margin:6px 0">“OpenAI migration kickoff” · Priya, Marcus, Dana · Zoom link auto-generated · no conflicts found</div>
+          <div class="row"><button class="btn sm primary"><i data-lucide="check"></i> Approve</button><button class="btn sm"><i data-lucide="pencil"></i> Edit</button><button class="btn sm ghost">Dismiss</button></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn primary"><i data-lucide="check-check"></i> Approve all 3</button><span class="faint">Each action is written to the audit log in Bedrock.</span></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Agent health</h3>
+        <div class="list">
+          <div class="list-item"><span class="status"></span><b>Longear</b><span class="muted">transcribed 3 meetings</span><span class="spacer"></span><span class="faint">2m ago</span></div>
+          <div class="list-item"><span class="status busy"></span><b>Wren</b><span class="muted">syncing 41 new emails</span><span class="spacer"></span><span class="faint">now</span></div>
+          <div class="list-item"><span class="status"></span><b>Chitter</b><span class="muted">watching 6 channels</span><span class="spacer"></span><span class="faint">live</span></div>
+          <div class="list-item"><span class="status idle"></span><b>Lorekeeper</b><span class="muted">last indexed 2 pages</span><span class="spacer"></span><span class="faint">1h ago</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Risks Elder Oak noticed</h3>
+        <div class="list">
+          <div class="list-item"><span class="badge danger">high</span><div><b>Acme Payroll</b> asked twice about SSO and has had no reply for 6 days.<div class="faint">email · Slack #acme-shared</div></div></div>
+          <div class="list-item"><span class="badge warn">med</span><div><b>PLAT-212</b> is blocked on a vendor API key and the due date is Friday.<div class="faint">Jira · standup transcript</div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="rail">
+    <div class="row" style="margin-bottom:10px"><i data-lucide="sparkles"></i><b>Whispers</b><span class="spacer"></span><span class="badge ok">live</span></div>
+    <p class="faint" style="margin-top:0">One- or two-sentence status updates. Spoken aloud unless muted.</p>
+    <div class="timeline">
+      <div class="tl-item"><div class="faint">Longear · 2:44 PM</div>Platform Sync is summarised. One decision and three follow-ups were found.</div>
+      <div class="tl-item"><div class="faint">Wren · 2:10 PM</div>Acme Payroll replied about the payroll integration pilot and asked for pricing.</div>
+      <div class="tl-item"><div class="faint">Beetle · 1:32 PM</div>PLAT-198 moved to Done. The release checklist is now 80% complete.</div>
+      <div class="tl-item"><div class="faint">Chitter · 12:05 PM</div>Three people asked about the Q4 roadmap in #general. Lorekeeper found the doc.</div>
+      <div class="tl-item"><div class="faint">Elder Oak · 9:00 AM</div>Morning brief: 4 meetings today, 2 overdue commitments, 1 at-risk account.</div>
+    </div>
+    <div style="margin-top:12px">
+      <input class="input" placeholder="Ask Elder Oak anything…" />
+      <div class="row" style="flex-wrap:wrap;margin-top:8px">
+        <span class="chip">What did we discuss with Acme last month?</span>
+        <span class="chip">Open commitments for Globex</span>
+      </div>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

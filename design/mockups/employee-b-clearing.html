@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moss · Employee B · The Clearing</title>
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="assets/theme.js"></script>
+  <style>
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px 60px; }
+    .hero { text-align: center; padding: 56px 0 28px; }
+    .hero h1 { font-family: var(--font-display); font-size: 40px; margin: 0; letter-spacing: -0.03em; }
+    .search { max-width: 680px; margin: 22px auto 0; position: relative; }
+    .search .input { padding: 16px 52px 16px 18px; font-size: 16px; border-radius: 14px; box-shadow: var(--shadow); }
+    .search .btn { position: absolute; right: 8px; top: 8px; }
+    .agent-card { cursor: pointer; transition: transform .15s ease, border-color .15s ease; }
+    .agent-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .agent-card .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 10px; }
+    .top { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px 16px 80px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="btn ghost" href="index.html"><i data-lucide="arrow-left"></i> All mockups</a>
+    <span class="spacer"></span>
+    <button class="btn icon-btn" data-toggle-mute><i data-mute-icon data-lucide="volume-2"></i></button>
+    <button class="btn" data-toggle-theme><i data-theme-icon data-lucide="sun"></i> <span data-theme-label>Notebook</span></button>
+  </div>
+  <div class="wrap">
+    <div class="hero">
+      <div class="hand">welcome to the clearing</div>
+      <h1>What do you need to know?</h1>
+      <p class="muted">Search every meeting, thread, ticket and doc you have access to.</p>
+      <div class="search">
+        <input class="input" placeholder="e.g. Where's the spec for the payroll sync API?" />
+        <button class="btn primary" aria-label="Search"><i data-lucide="search"></i></button>
+      </div>
+      <div class="row" style="justify-content:center;flex-wrap:wrap;margin-top:12px">
+        <span class="chip">My open action items</span>
+        <span class="chip">Summarise today's Platform Sync</span>
+        <span class="chip">Who owns PLAT-204?</span>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card agent-card"><div class="ico"><i data-lucide="bird"></i></div><h3>Wren</h3><div class="muted">Emails and calendar. Find a thread, draft a reply, check when people are free.</div></div>
+      <div class="card agent-card"><div class="ico"><i data-lucide="squirrel"></i></div><h3>Chitter</h3><div class="muted">Slack. Catch up on a channel, find who said what, post an update.</div></div>
+      <div class="card agent-card"><div class="ico"><i data-lucide="bug"></i></div><h3>Beetle</h3><div class="muted">Jira. Your tickets, blockers and sprint status. Create or update issues.</div></div>
+      <div class="card agent-card"><div class="ico"><i data-lucide="rabbit"></i></div><h3>Longear</h3><div class="muted">Meetings. Notes, transcripts, decisions and your action items.</div></div>
+      <div class="card agent-card"><div class="ico"><i data-lucide="turtle"></i></div><h3>Lorekeeper</h3><div class="muted">Confluence. Specs, runbooks and how-tos with exact citations.</div></div>
+      <div class="card agent-card" style="opacity:.6;cursor:not-allowed"><div class="ico"><i data-lucide="lock"></i></div><h3>Elder Oak</h3><div class="muted">Cross-team orchestration is available to managers only.</div></div>
+    </div>
+  </div>
+</body>
+</html>

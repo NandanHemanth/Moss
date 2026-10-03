@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moss · Employee A · My Burrow</title>
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="assets/theme.js"></script>
+  <style>
+    .task { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+    .task input { margin-top: 4px; accent-color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Moss</div><div class="brand-role">Employee</div></div>
+    </div>
+    <a class="nav-item active"><i data-lucide="home"></i> My Burrow</a>
+    <a class="nav-item"><i data-lucide="list-checks"></i> My commitments <span class="badge">4</span></a>
+    <a class="nav-item"><i data-lucide="notebook-pen"></i> Meeting notes</a>
+    <a class="nav-item"><i data-lucide="search"></i> Search</a>
+    <div class="nav-label">My helpers</div>
+    <a class="nav-item"><i data-lucide="bird"></i> Wren</a>
+    <a class="nav-item"><i data-lucide="squirrel"></i> Chitter</a>
+    <a class="nav-item"><i data-lucide="bug"></i> Beetle</a>
+    <a class="nav-item"><i data-lucide="rabbit"></i> Longear</a>
+    <a class="nav-item"><i data-lucide="turtle"></i> Lorekeeper</a>
+    <div class="spacer"></div>
+    <a class="nav-item" href="index.html"><i data-lucide="arrow-left"></i> All mockups</a>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 class="page-title">Hi Priya <span class="hand">here's your day</span></h1>
+        <p class="page-sub">2 meetings · 4 commitments · 1 thing you were mentioned in</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn icon-btn" data-toggle-mute><i data-mute-icon data-lucide="volume-2"></i></button>
+      <button class="btn" data-toggle-theme><i data-theme-icon data-lucide="sun"></i> <span data-theme-label>Notebook</span></button>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Things you said you'd do</h3>
+        <p class="faint" style="margin-top:0">Pulled from meetings and threads. Tick when done; Beetle syncs Jira.</p>
+        <div class="task"><input type="checkbox" /><div><b>Add OpenAI provider behind LLM_PROVIDER flag</b><div class="faint">Platform Sync · today · PLAT-231 · due Oct 16</div></div></div>
+        <div class="task"><input type="checkbox" /><div><b>Share load-test baseline with Marcus</b><div class="faint">Platform Sync · today</div></div></div>
+        <div class="task"><input type="checkbox" /><div><b>Answer Acme's Okta SCIM question</b><div class="faint">Gmail thread · Sep 27 · <span class="badge warn">overdue</span></div></div></div>
+        <div class="task"><input type="checkbox" checked /><div><s>Review PLAT-198 PR</s><div class="faint">Jira · done yesterday</div></div></div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h3>Ask a helper</h3>
+          <div class="row" style="flex-wrap:wrap;margin-bottom:10px">
+            <span class="chip on" data-toggle><i data-lucide="rabbit"></i> Longear</span>
+            <span class="chip" data-toggle><i data-lucide="turtle"></i> Lorekeeper</span>
+            <span class="chip" data-toggle><i data-lucide="bug"></i> Beetle</span>
+            <span class="chip" data-toggle><i data-lucide="squirrel"></i> Chitter</span>
+            <span class="chip" data-toggle><i data-lucide="bird"></i> Wren</span>
+          </div>
+          <div class="row"><input class="input" placeholder="What did we decide about rate limits in today's sync?" /><button class="btn primary" aria-label="Send"><i data-lucide="send"></i></button></div>
+          <div class="bubble" style="margin-top:12px;max-width:100%">
+            <b>Longear:</b> You agreed to keep the current 60 rpm limit for the OpenAI provider and revisit after load tests.
+            <div><span class="cite">Platform Sync · 18:42</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Today</h3>
+          <div class="list">
+            <div class="list-item"><i data-lucide="video"></i><div><b>Platform Sync</b> <span class="badge ok">notes ready</span><div class="faint">2:00 PM · 42 min · 3 action items</div></div></div>
+            <div class="list-item"><i data-lucide="video"></i><div><b>1:1 with Dana</b><div class="faint">4:30 PM · Longear will take notes</div></div></div>
+            <div class="list-item"><i data-lucide="at-sign"></i><div><b>Mentioned in #platform-eng</b><div class="faint">Marcus: “Priya, can you share the baseline?”</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
