@@ -1,11 +1,12 @@
 // "/" — the Clearing for managers, "My work" for employees.
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useCustomMutation, useInvalidate, type HttpError } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../config";
 import { AgentAvatar, useAgentDirectory } from "../components/AgentAvatar";
 import { CommitmentsTable } from "../components/CommitmentsTable";
+import { DashboardTiles } from "../components/Dashboard";
 import { ProposalCard } from "../components/ProposalCard";
 import { Empty, ErrorNote, Loading } from "../components/States";
 import { Whispers } from "../components/Whispers";
@@ -30,7 +31,7 @@ function Greeting() {
   );
 }
 
-// ------------------------------------------------------------------ manager
+// ------------------------------------------------------------------ shared
 function AskBar() {
   const navigate = useNavigate();
   const { agents } = useAgentDirectory();
@@ -49,8 +50,8 @@ function AskBar() {
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder={`Ask ${orchestrator?.name ?? "the orchestrator"}… “What are the open commitments for Harborline Freight?”`}
-        aria-label={`Ask ${orchestrator?.name ?? "the orchestrator"}`}
+        placeholder={`Ask ${orchestrator?.name ?? "Moss"}… e.g. “What is open for Harborline Freight?”`}
+        aria-label={`Ask ${orchestrator?.name ?? "Moss"}`}
       />
       <button className="btn p" type="submit">
         Ask
@@ -66,7 +67,7 @@ type DemoNote = { tone: "ok" | "fail"; text: string } | { tone: "sync"; text: st
 function SyncReport({ text, problems }: { text: string; problems: SyncProblem[] }) {
   const { byId } = useAgentDirectory();
   return (
-    <div className="demo-note sync-report" role="status" data-testid="sync-report">
+    <div className="sync-report grow" role="status" data-testid="sync-report">
       <div className="sync-summary">{text}</div>
       {problems.length ? (
         <ul className="sync-problems" aria-label="Sync problems">
@@ -93,13 +94,14 @@ function SyncReport({ text, problems }: { text: string; problems: SyncProblem[] 
   );
 }
 
-function DemoControls() {
+/** "Simulate a meeting" and "Sync": two quiet buttons in the section header; the result shows as one dismissible line. */
+function useDecisionTools() {
   const canDemo = useAllowed("demo", "trigger");
   const canSync = useAllowed("sync", "run");
   const queryClient = useQueryClient();
   const invalidate = useInvalidate();
   const queue = useMossQuery<DemoQueueItem[]>("demo-queue", "/api/demo/queue", { enabled: canDemo });
-  // same query key as the sidebar status strip, so this shares its request and its refreshes
+  // same query key as the sidebar status line, so this shares its request and its refreshes
   const status = useMossQuery<Status>("status", "/api/status", { enabled: canSync });
   const backlog = Number(status.data?.backlog) || 0;
   const { mutateAsync: postMeeting } = useCustomMutation<MeetingEndedResult, HttpError, Record<string, never>>();
@@ -107,10 +109,7 @@ function DemoControls() {
   const [busy, setBusy] = useState<"meeting" | "sync" | null>(null);
   const [note, setNote] = useState<DemoNote | null>(null);
 
-  if (!canDemo && !canSync) return null;
-
   const next = queue.data?.[0];
-  const left = queue.data?.length ?? 0;
   const refreshAll = () => {
     void queryClient.invalidateQueries({ queryKey: [MOSS_QUERY_KEY] }, { cancelRefetch: false });
     (["proposals", "commitments", "timeline", "notifications", "accounts"] as const).forEach((resource) => void invalidate({ resource, invalidates: ["list"] }));
@@ -163,48 +162,55 @@ function DemoControls() {
     }
   };
 
-  return (
-    <div className="demo" data-section="demo">
-      <div className="row wrap">
-        <span className="demo-badge">Demo</span>
-        <div className="grow" style={{ minWidth: 180 }}>
-          {queue.isLoading ? (
-            <span className="small">Checking seeded meetings…</span>
-          ) : queue.error ? (
-            <span className="small">Could not load the demo queue: {errorMessage(queue.error)}</span>
-          ) : next ? (
-            <>
-              <b>Next seeded meeting:</b> {next.title}
-              <div className="small">{left > 1 ? `${left} meetings left in the queue` : "Last one in the queue"}</div>
-            </>
-          ) : (
-            <>
-              <b>No seeded meetings left</b>
-              <div className="small">Re-run the seeder to reset the demo.</div>
-            </>
-          )}
-        </div>
-        <button className="btn p big" onClick={meetingEnded} disabled={!next || busy !== null} data-testid="meeting-ended">
-          {busy === "meeting" ? "Reading the transcript…" : "A meeting just ended"}
-        </button>
-        <button className="btn big" onClick={sync} disabled={busy !== null} title="Pull new items from the live connectors" data-testid="sync">
-          {busy === "sync" ? "Syncing…" : backlog > 0 ? `Sync (${backlog} waiting)` : "Sync"}
-        </button>
+  const meetingTitle = queue.isLoading
+    ? "Checking for sample meetings…"
+    : queue.error
+      ? errorMessage(queue.error)
+      : next
+        ? `Plays the next sample meeting: “${next.title}”`
+        : "No sample meetings left to play";
+
+  const buttons =
+    canDemo || canSync ? (
+      <div className="section-tools" data-section="demo">
+        {canDemo ? (
+          <span title={meetingTitle}>
+            <button className="btn" onClick={meetingEnded} disabled={!next || busy !== null} data-testid="meeting-ended">
+              {busy === "meeting" ? "Reading the transcript…" : "Simulate a meeting"}
+            </button>
+          </span>
+        ) : null}
+        {canSync ? (
+          <button className="btn" onClick={sync} disabled={busy !== null} title="Pull new items from the connected tools" data-testid="sync">
+            {busy === "sync" ? "Syncing…" : backlog > 0 ? `Sync (${backlog} waiting)` : "Sync"}
+          </button>
+        ) : null}
       </div>
-      {note?.tone === "sync" ? (
+    ) : null;
+
+  const result = note ? (
+    <div className={`notice ${note.tone === "fail" ? "fail" : ""}`} data-testid="demo-note">
+      {note.tone === "sync" ? (
         <SyncReport text={note.text} problems={note.problems} />
-      ) : note ? (
-        <div className={`small demo-note ${note.tone}`} role="status">
+      ) : (
+        <div className="grow" role="status">
           {note.text}
         </div>
-      ) : null}
+      )}
+      <button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => setNote(null)}>
+        ×
+      </button>
     </div>
-  );
+  ) : null;
+
+  return { buttons, result };
 }
 
 function ManagerClearing() {
   const proposals = useMossList<Proposal>("proposals", { status: "all" });
   const users = useMossList<User>("users");
+  const tools = useDecisionTools();
+  const [showDecided, setShowDecided] = useState(false);
   const pending = proposals.data.filter((p) => p.status === "pending");
   const done = proposals.data.filter((p) => p.status !== "pending").slice(0, 4);
   const pendingActions = pending.reduce((n, p) => n + p.actions.filter((a) => a.status === "pending").length, 0);
@@ -214,11 +220,16 @@ function ManagerClearing() {
       <section className="main" data-page="clearing">
         <Greeting />
         <AskBar />
-        <DemoControls />
+        <DashboardTiles />
 
-        <div className="lbl first" data-testid="needs-decision-label">
-          Needs your decision{pending.length ? ` · ${plural(pending.length, "item")}, ${plural(pendingActions, "action")}` : ""}
+        <div className="section-head">
+          <h2 data-testid="needs-decision-label">
+            Needs your decision
+            {pending.length ? <span className="count">{plural(pendingActions, "action")}</span> : null}
+          </h2>
+          {tools.buttons}
         </div>
+        {tools.result}
         <div data-section="pending">
           {proposals.isLoading ? (
             <div className="card">
@@ -230,7 +241,7 @@ function ManagerClearing() {
             </div>
           ) : pending.length === 0 ? (
             <div className="card">
-              <Empty title="The clearing is calm">Nothing is waiting for your decision. When a meeting ends, proposed next steps appear here.</Empty>
+              <Empty title="Nothing is waiting for you">Proposed next steps appear here after a meeting.</Empty>
             </div>
           ) : (
             pending.map((p) => <ProposalCard key={p.id} proposal={p} users={users.data} />)
@@ -241,12 +252,22 @@ function ManagerClearing() {
 
         {done.length ? (
           <>
-            <div className="lbl">Recently decided</div>
-            <div data-section="decided">
-              {done.map((p) => (
-                <ProposalCard key={p.id} proposal={p} users={users.data} />
-              ))}
+            <div className="section-head">
+              <h2>
+                <button type="button" className="disclosure" aria-expanded={showDecided} aria-controls="recently-decided" onClick={() => setShowDecided((v) => !v)} data-testid="toggle-decided">
+                  <span className="caret" aria-hidden="true" />
+                  Recently decided
+                  <span className="count">{done.length}</span>
+                </button>
+              </h2>
             </div>
+            {showDecided ? (
+              <div id="recently-decided" data-section="decided">
+                {done.map((p) => (
+                  <ProposalCard key={p.id} proposal={p} users={users.data} />
+                ))}
+              </div>
+            ) : null}
           </>
         ) : null}
       </section>
@@ -258,39 +279,15 @@ function ManagerClearing() {
 }
 
 // ------------------------------------------------------------------ employee
-function AgentTiles() {
-  const { agents, isLoading } = useAgentDirectory();
-  const callable = agents.filter((a) => a.allowed && !a.manager_only);
-  if (isLoading && !agents.length) return <Loading label="Finding the agents…" />;
-  if (!callable.length) return <Empty title="No agents available" />;
-  return (
-    <div className="grid5" data-section="agent-tiles">
-      {callable.map((a) => (
-        <Link key={a.id} className="tile" to={`/ask?agent=${encodeURIComponent(a.id)}`} data-agent={a.id}>
-          <div className="row">
-            <AgentAvatar id={a.id} />
-            <b>{a.name}</b>
-          </div>
-          <p>{a.tool}</p>
-          <p>{a.description}</p>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 function MyDay() {
   const { data, isLoading, error, refetch } = useMossList<MossEvent>("timeline", { source: "calendar" });
-  const { agents, nameOf } = useAgentDirectory();
-  const orchestrator = agents.find((a) => a.manager_only);
-  const calendarAgent = data[0]?.agent_id;
 
   const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
   const today = data.filter((e) => isToday(e.occurred_at)).sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
   const upcoming = data
     .filter((e) => !isToday(e.occurred_at) && (parseDate(e.occurred_at) ?? startOfToday) > startOfToday)
     .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
-    .slice(0, 4);
+    .slice(0, 3);
 
   const item = (e: MossEvent, withDay: boolean) => (
     <div className="wh" key={e.id}>
@@ -302,8 +299,7 @@ function MyDay() {
 
   return (
     <>
-      <h3>My day</h3>
-      <div className="small">{calendarAgent ? `From ${nameOf(calendarAgent)}` : "From your calendar"}</div>
+      <h3 className="rail-title">My day</h3>
       {isLoading ? (
         <Loading label="Checking the calendar…" />
       ) : error ? (
@@ -317,8 +313,6 @@ function MyDay() {
           {upcoming.map((e) => item(e, true))}
         </div>
       )}
-      <div className="lbl">Ask {orchestrator?.name ?? "the orchestrator"}</div>
-      <div className="small">{orchestrator?.name ?? "The orchestrator"} is available to managers only. You can ask any single agent directly.</div>
     </>
   );
 }
@@ -330,12 +324,14 @@ function EmployeeWork() {
     <>
       <section className="main" data-page="my-work">
         <Greeting />
-        <div className="lbl">Call an agent</div>
-        <AgentTiles />
+        <AskBar />
+        <DashboardTiles />
 
         <CommitmentsTable title="My commitments" showOwner={false} />
 
-        <div className="lbl">From your meetings</div>
+        <div className="section-head">
+          <h2>From your meetings</h2>
+        </div>
         <div data-section="from-meetings">
           {proposals.isLoading ? (
             <div className="card">
@@ -347,7 +343,7 @@ function EmployeeWork() {
             </div>
           ) : proposals.data.length === 0 ? (
             <div className="card">
-              <Empty title="Nothing proposed yet">When one of your meetings ends, the next steps Moss proposes show up here.</Empty>
+              <Empty title="Nothing proposed yet">Next steps from your meetings appear here.</Empty>
             </div>
           ) : (
             proposals.data.map((p) => <ProposalCard key={p.id} proposal={p} users={users.data} />)

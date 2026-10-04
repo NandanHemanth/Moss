@@ -9,6 +9,7 @@
 // `payload` = its JSON data (used for voice and for refreshing non-resource queries).
 import type { LiveEvent, LiveProvider } from "@refinedev/core";
 import { api } from "../config";
+import { accessStore } from "../session";
 
 export type StreamState = "connecting" | "live" | "reconnecting" | "closed";
 
@@ -79,7 +80,8 @@ export function createLiveProvider(userId: string): MossLiveProvider {
   const connect = () => {
     if (source) return;
     setState("connecting");
-    const es = new EventSource(api(`/api/stream?user=${encodeURIComponent(userId)}`));
+    const code = accessStore.code();
+    const es = new EventSource(api(`/api/stream?user=${encodeURIComponent(userId)}${code ? `&code=${encodeURIComponent(code)}` : ""}`));
     source = es;
     es.addEventListener("ready", () => {
       setState("live");

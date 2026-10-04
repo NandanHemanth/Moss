@@ -57,3 +57,46 @@ export function applyMotion(motion: "on" | "off") {
 export function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
 }
+
+// ---------------------------------------------------------------- access code (hosted demo)
+// When the backend is started with an access code, every /api call needs it (header X-Moss-Code, `&code=` on SSE).
+const CODE_KEY = "moss.code";
+type Access = { code: string; required: boolean; rejected: boolean };
+let access: Access = { code: "", required: false, rejected: false };
+try {
+  access = { ...access, code: localStorage.getItem(CODE_KEY) ?? "" };
+} catch {
+  /* storage unavailable */
+}
+const accessListeners = new Set<Listener>();
+const setAccess = (next: Access) => {
+  access = next;
+  try {
+    if (next.code) localStorage.setItem(CODE_KEY, next.code);
+    else localStorage.removeItem(CODE_KEY);
+  } catch {
+    /* ignore */
+  }
+  accessListeners.forEach((l) => l());
+};
+
+export const accessStore = {
+  get: (): Access => access,
+  code: (): string => access.code,
+  /** A valid code was entered. */
+  accept(code: string) {
+    setAccess({ code, required: false, rejected: false });
+  },
+  /** The API answered "access code required": ask for one (a stored code that was sent is wrong, so drop it). */
+  demand() {
+    if (access.required && !access.code) return;
+    setAccess({ code: "", required: true, rejected: access.code !== "" });
+  },
+  subscribe(l: Listener) {
+    accessListeners.add(l);
+    return () => {
+      accessListeners.delete(l);
+    };
+  },
+};
+export const useAccess = () => useSyncExternalStore(accessStore.subscribe, accessStore.get);

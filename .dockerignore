@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.pytest_cache
+backend/.env
+backend/env*
+backend/.env.bak-*
+backend/credentials.json
+backend/token.json
+backend/data/*.db
+backend/data/*.sqlite3
+docs/screenshots

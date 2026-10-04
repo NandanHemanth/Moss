@@ -32,7 +32,51 @@ def get_proposal(pid: str) -> dict | None:
     p["event"] = db.one("SELECT id,source,agent_id,title,summary,occurred_at,account,participants,url,meta FROM events "
                         "WHERE id=?", (p["event_id"],)) if p["event_id"] else None
     p["insights"] = db.q("SELECT kind,text,owner,due FROM insights WHERE event_id=?", (p["event_id"],)) if p["event_id"] else []
+    p["escalations"] = db.q("SELECT id, team, reason, subject, body, status, result FROM escalations WHERE proposal_id=? ORDER BY created_at", (pid,))
+    by = next((a["requested_by"] for a in p["actions"] if (a.get("requested_by") or "").startswith("workflow:")), None)
+    p["workflow"] = by.split(":", 1)[1] if by else None
     return p
+
+
+HELP_WORDS = {"DevOps": ("keys", "rotate", "rotation", "staging", "deploy", "outage", "rollback", "infrastructure", "incident", "latency", "server"),
+              "Finance": ("budget", "pricing", "invoice", "spend", "discount", "billing", "purchase"),
+              "HR": ("hire", "hiring", "headcount", "capacity", "staffing", "contractor", "understaffed", "onboarding")}
+
+
+def rule_help(event: dict, insights: list) -> list[dict]:
+    """Offline stand-in for the model's judgement: suggest outside help only when a risk or request names the area."""
+    out = []
+    for team, words in HELP_WORDS.items():
+        hit = next((i for i in insights if i.kind in ("risk", "request") and any(w in i.text.lower() for w in words)), None)
+        if hit:
+            out.append({"team": team, "reason": hit.text, "subject": f"Help needed: {event['title']}"[:120],
+                        "body": f"Hi {team} team,\n\nIn “{event['title']}” this came up: {hit.text}\n\n"
+                                "Could you help us with it, or tell us who can? Happy to give more detail.\n\nThanks"})
+    return out
+
+
+def save_help(proposal_id: str, helps: list[dict]) -> None:
+    for h in helps[:3]:
+        if h.get("team") in settings.help_emails:
+            db.insert("escalations", {"id": db.new_id("esc"), "proposal_id": proposal_id, "team": h["team"], "reason": h.get("reason", ""),
+                                      "subject": h.get("subject", ""), "body": h.get("body", ""), "status": "suggested", "created_at": db.now()})
+
+
+async def draft_help(esc_id: str, user: dict) -> dict:
+    """The manager asked for it: create an email draft to HR, Finance or DevOps. A draft only; nothing is sent."""
+    esc = db.one("SELECT * FROM escalations WHERE id=?", (esc_id,))
+    if not esc:
+        raise KeyError(esc_id)
+    if esc["status"] == "suggested":
+        try:
+            res = await connectors.gmail().create_draft(settings.help_emails[esc["team"]], esc["subject"], esc["body"])
+            db.update("escalations", esc_id, {"status": "drafted", "result": res})
+            notify.notify("raven", f"Raven drafted an email to {esc['team']}: {esc['subject']}.")
+        except Exception as e:
+            db.update("escalations", esc_id, {"status": "failed", "result": {"error": str(e)[:300]}})
+        db.audit(user["id"], "help.draft", f"{esc_id} {esc['team']}")
+        notify.publish("proposal", {"id": esc["proposal_id"]})
+    return db.one("SELECT id, proposal_id, team, reason, subject, body, status, result FROM escalations WHERE id=?", (esc_id,))
 
 
 def list_proposals(status: str | None = "pending") -> list[dict]:

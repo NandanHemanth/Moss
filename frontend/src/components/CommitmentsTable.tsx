@@ -8,7 +8,10 @@ import type { Commitment } from "../types";
 import { AgentAvatar } from "./AgentAvatar";
 import { Empty, ErrorNote, Loading } from "./States";
 
+const PREVIEW = 5;
+
 export function CommitmentsTable({ title, showOwner }: { title: string; showOwner: boolean }) {
+  const [showAll, setShowAll] = useState(false);
   const { data, isLoading, error, refetch } = useMossList<Commitment>("commitments", { status: "open" });
   const canEdit = useAllowed("commitments", "edit");
   const { mutateAsync } = useUpdate<Commitment, HttpError, { status: "done" | "open" }>();
@@ -31,7 +34,7 @@ export function CommitmentsTable({ title, showOwner }: { title: string; showOwne
 
   return (
     <div className="card" data-section="commitments">
-      <div className="row">
+      <div className="row card-head">
         <h2 className="grow">{title}</h2>
         {data.length ? <span className="small">{data.length} open</span> : null}
       </div>
@@ -43,7 +46,7 @@ export function CommitmentsTable({ title, showOwner }: { title: string; showOwne
         <Empty title="Nothing open">{showOwner ? "No one owes anything right now." : "You have no open commitments."}</Empty>
       ) : (
         <div className="table-wrap">
-          <table style={{ marginTop: 10 }}>
+          <table>
             <thead>
               <tr>
                 <th>What</th>
@@ -55,7 +58,7 @@ export function CommitmentsTable({ title, showOwner }: { title: string; showOwne
               </tr>
             </thead>
             <tbody>
-              {data.map((c) => {
+              {(showAll ? data : data.slice(0, PREVIEW)).map((c) => {
                 const due = formatDue(c.due);
                 return (
                   <tr key={c.id} data-commitment={c.id}>
@@ -85,6 +88,13 @@ export function CommitmentsTable({ title, showOwner }: { title: string; showOwne
           </table>
         </div>
       )}
+      {data.length > PREVIEW ? (
+        <div className="card-foot">
+          <button type="button" className="linkish" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)} data-testid="show-all-commitments">
+            {showAll ? "Show fewer" : `Show all (${data.length})`}
+          </button>
+        </div>
+      ) : null}
       {lastDone ? (
         <div className="small" style={{ marginTop: 10 }} role="status">
           ✓ Marked done: “{lastDone.text}”.{" "}

@@ -132,6 +132,14 @@
       "description": "Review progress on the OpenAI summarisation endpoint and the rollback plan."
      }
     }
+   ],
+   "help": [
+    {
+     "team": "DevOps",
+     "reason": "Staging provider keys expire Friday and nobody owns the rotation; there is no rollback plan yet.",
+     "subject": "Help needed: staging key rotation and rollback for the provider switch",
+     "body": "Hi DevOps team,\n\nIn today's Platform sync we decided to move summarisation from Claude to OpenAI. Two things need your help:\n\n1. The staging provider keys expire on Friday and nobody owns the rotation.\n2. We have no rollback plan if the new provider degrades.\n\nCould someone from DevOps pair with Elena Petrova this week on both? Happy to share details.\n\nThanks,\nMaya"
+    }
    ]
   }
  },

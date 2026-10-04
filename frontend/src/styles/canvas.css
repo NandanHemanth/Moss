@@ -1,0 +1,759 @@
+/* "/canvas" — the workflow whiteboard. Loaded only with the Canvas page (after React Flow's own stylesheet).
+   Light: a white dot-grid whiteboard. Dark: a deep-green glass board with faint dots. */
+
+.canvas-page {
+  --cv-board: #ffffff;
+  --cv-dot: #cfcabb;
+  --cv-node: #ffffff;
+  --cv-node-line: #d6cfbd;
+  --cv-edge: #8f8a7b;
+  --cv-panel: #fbf9f2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:root[data-theme="dark"] .canvas-page {
+  --cv-board: rgba(10, 24, 17, 0.72);
+  --cv-dot: rgba(147, 204, 108, 0.22);
+  --cv-node: #14251c;
+  --cv-node-line: #2f4d39;
+  --cv-edge: #6f8f76;
+  --cv-panel: rgba(18, 32, 25, 0.96);
+}
+/* the canvas has no right rail: use the whole width beside the sidebar */
+.frame.A > .main.canvas-page {
+  grid-column: 2 / -1;
+}
+
+/* ---------- toolbar ---------- */
+.cv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.cv-toolbar h1 {
+  margin-right: 6px;
+}
+.cv-picker {
+  width: 190px;
+  max-width: 100%;
+}
+.cv-name {
+  flex: 1 1 180px;
+  max-width: 300px;
+  font-weight: 600;
+}
+.cv-spacer {
+  flex: 1 1 0;
+}
+.cv-unsaved {
+  white-space: nowrap;
+}
+.cv-switch {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 3px 4px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.cv-switch i {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 20px;
+  background: var(--chip);
+  border: 1px solid var(--line);
+  transition: background 0.15s;
+  flex: none;
+}
+.cv-switch i::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.cv-switch[aria-checked="true"] {
+  color: var(--accent);
+}
+.cv-switch[aria-checked="true"] i {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.cv-switch[aria-checked="true"] i::after {
+  transform: translateX(13px);
+  background: var(--accent-ink);
+}
+.cv-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cv-switch:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.cv-toolbar .btn[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.cv-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 12.5px;
+}
+.btn.cv-danger {
+  color: var(--warn);
+}
+.btn.cv-danger:hover:not(:disabled) {
+  border-color: var(--warn);
+}
+
+/* ---------- ask Stag ---------- */
+.cv-stag {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px 8px;
+}
+.ask.cv-ask {
+  margin: 0;
+  padding: 8px 8px 8px 10px;
+  background: var(--field);
+  gap: 10px;
+}
+.ask.cv-ask input {
+  font-size: 14.5px;
+  padding: 4px 0;
+  text-overflow: ellipsis;
+}
+.ask.cv-ask:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ask.cv-ask .btn {
+  padding: 7px 16px;
+  font-size: 13px;
+}
+.cv-stag-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 6px;
+  min-height: 30px;
+}
+.cv-stag-foot .suggestions {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+.cv-source {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.cv-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.state.cv-error {
+  margin: 0;
+}
+
+/* ---------- work area: palette | board ---------- */
+.cv-work {
+  flex: 1 1 auto;
+  min-height: 520px;
+  display: grid;
+  grid-template-columns: 138px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+}
+/* Dark theme on roomy screens: the shell is a fixed sheet whose columns scroll on their own (grove.css),
+   so let the board shrink to what is left instead of forcing a scroll inside the column. */
+@media (min-width: 1101px) and (min-height: 620px) {
+  :root[data-theme="dark"] .cv-work {
+    min-height: 320px;
+  }
+}
+.cv-palette {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 10px 8px;
+  min-width: 0;
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cv-palette ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.cv-palette .lbl {
+  margin-left: 6px;
+}
+.cv-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1.2;
+  user-select: none;
+}
+.cv-palette-item:hover {
+  background: var(--soft);
+}
+.cv-palette-item:active {
+  cursor: grabbing;
+}
+.cv-palette-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cv-palette-text {
+  display: grid;
+  min-width: 0;
+}
+.cv-palette-text b {
+  font-weight: 600;
+}
+.cv-palette-text .small {
+  font-size: 11px;
+}
+.av.cv-plain-av {
+  font: 700 14px/1 "Segoe UI", system-ui, sans-serif;
+}
+
+.cv-boardcol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--cv-board);
+}
+:root[data-theme="dark"] .cv-boardcol {
+  backdrop-filter: blur(6px);
+}
+.cv-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+.cv-stage > .react-flow {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  --xy-background-color: transparent;
+  --xy-background-pattern-color: var(--cv-dot);
+  --xy-edge-stroke: var(--cv-edge);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-edge-stroke-width: 1.6;
+  --xy-connectionline-stroke: var(--accent);
+  --xy-connectionline-stroke-width: 1.6;
+  --xy-handle-background-color: var(--cv-node);
+  --xy-handle-border-color: var(--cv-edge);
+  --xy-controls-button-background-color: var(--cv-panel);
+  --xy-controls-button-background-color-hover: var(--chip);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--line);
+  --xy-controls-box-shadow: var(--shadow);
+  --xy-attribution-background-color: transparent;
+  --xy-selection-background-color: var(--soft);
+  --xy-selection-border: 1px dotted var(--accent);
+}
+.cv-stage .react-flow__controls {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.cv-stage .react-flow__controls-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cv-stage .react-flow__attribution {
+  font-size: 9px;
+  opacity: 0.55;
+}
+.cv-stage .react-flow__attribution a {
+  color: var(--muted);
+}
+.cv-stage .react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 2.2;
+}
+.cv-stage .react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+}
+.cv-stage .react-flow__handle {
+  width: 11px;
+  height: 11px;
+  border-width: 1.5px;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.cv-stage .react-flow__handle:hover,
+.cv-stage .react-flow__handle.connectingto,
+.cv-stage .react-flow__handle.valid {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.cv-stage .react-flow__node:focus-visible {
+  outline: none;
+}
+.cv-stage .react-flow__node:focus-visible .cv-node-box {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- node ---------- */
+.cv-node {
+  width: 172px;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  color: var(--ink);
+}
+.cv-node-box {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c, #737d77) 13%, var(--cv-node));
+  border: 1.5px solid var(--cv-node-line);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 5px 12px rgba(40, 40, 20, 0.09);
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+:root[data-theme="dark"] .cv-node-box {
+  background: color-mix(in srgb, var(--c, #737d77) 22%, var(--cv-node));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.cv-node:hover .cv-node-box {
+  border-color: var(--cv-edge);
+}
+.cv-node.selected .cv-node-box {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--soft), 0 5px 12px rgba(40, 40, 20, 0.09);
+}
+.cv-node.ran .cv-node-box {
+  border-color: var(--accent);
+}
+.cv-node.pulse .cv-node-box {
+  animation: cv-pulse 0.52s ease-out;
+  border-color: var(--accent);
+}
+@keyframes cv-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.07);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+    transform: scale(1);
+  }
+}
+.cv-node-glyph {
+  font:
+    33px/1 "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    sans-serif;
+  user-select: none;
+}
+.cv-node-box.plain .cv-node-glyph {
+  font: 600 30px/1 "Segoe UI", system-ui, sans-serif;
+  color: color-mix(in srgb, var(--c, #737d77) 70%, var(--ink));
+}
+.cv-bolt {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 0 0 2px var(--cv-node);
+}
+.cv-node-kind {
+  margin-top: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.cv-node-label {
+  margin-top: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.cv-node-kind + .cv-node-label {
+  margin-top: 1px;
+}
+.cv-node-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--muted);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- empty state ---------- */
+.cv-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  pointer-events: none;
+  z-index: 4;
+}
+.cv-empty-card {
+  max-width: 520px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.cv-empty-card p {
+  margin: 0;
+  font-size: 13px;
+}
+.cv-empty-card .suggestions {
+  margin-top: 4px;
+  pointer-events: auto;
+}
+.cv-empty-card button.chip.suggestion {
+  margin: 3px;
+}
+.cv-empty .cv-status {
+  background: var(--cv-panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 14px;
+}
+
+/* ---------- inspector ---------- */
+.cv-inspector {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: 264px;
+  max-width: calc(100% - 20px);
+  z-index: 6;
+  background: var(--cv-panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px 12px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cv-inspector-head,
+.cv-run-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cv-x {
+  all: unset;
+  cursor: pointer;
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--muted);
+  align-self: center;
+}
+.cv-x:hover {
+  background: var(--chip);
+  color: var(--ink);
+}
+.cv-x:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.cv-field {
+  display: grid;
+  gap: 4px;
+}
+.cv-field-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.cv-field-name .small {
+  font-weight: 400;
+  margin-left: 3px;
+}
+.cv-field .field {
+  width: 100%;
+  font-size: 13px;
+}
+.cv-inspector .btn.cv-danger {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+/* ---------- test run drawer ---------- */
+.cv-run {
+  border-top: 1px solid var(--line);
+  background: var(--cv-panel);
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  height: 280px;
+  flex: none;
+}
+.cv-run-form {
+  padding: 10px 12px 12px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow-y: auto;
+}
+.cv-run-form .cv-field {
+  flex: 1 1 auto;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+.cv-run-form textarea.field {
+  resize: none;
+  min-height: 84px;
+  height: 100%;
+  font-size: 12.5px;
+}
+.cv-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cv-run-result {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 10px 14px;
+  gap: 8px;
+}
+.cv-run-result .state {
+  margin: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.cv-run-result .state.error {
+  padding: 9px 12px;
+}
+.cv-run-hint {
+  padding: 4px 0;
+}
+.cv-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.cv-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  animation: cv-step-in 0.25s ease-out;
+}
+@keyframes cv-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.cv-step-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c, #737d77) 16%, var(--cv-node));
+  border: 1px solid var(--cv-node-line);
+  font:
+    14px/1 "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    sans-serif;
+}
+.cv-step-icon.plain {
+  font: 600 13px/1 "Segoe UI", system-ui, sans-serif;
+  color: color-mix(in srgb, var(--c, #737d77) 70%, var(--ink));
+}
+.cv-step-body {
+  min-width: 0;
+  flex: 1;
+}
+.cv-step-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 13px;
+}
+.cv-step-head .chip {
+  margin: 0;
+}
+.cv-step-out {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cv-action {
+  margin-top: 6px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  padding: 7px 9px;
+  background: var(--field);
+  font-size: 12.5px;
+}
+.cv-action-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.cv-action-head .chip {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+}
+.cv-action dl {
+  margin: 5px 0 0;
+  display: grid;
+  gap: 2px;
+}
+.cv-action dl > div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px;
+}
+.cv-action dt {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.cv-action dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cv-run-summary {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  border-top: 1px dashed var(--line);
+  padding-top: 7px;
+  font-size: 13px;
+}
+.cv-queued {
+  color: var(--accent);
+  font-weight: 600;
+}
+.cv-run-summary .small:last-child {
+  margin-left: auto;
+}
+
+/* ---------- narrow ---------- */
+@media (max-width: 920px) {
+  .frame.A > .main.canvas-page {
+    grid-column: 1;
+  }
+  .cv-work {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .cv-palette {
+    max-height: none;
+  }
+  .cv-palette ul {
+    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  }
+  .cv-boardcol {
+    min-height: 520px;
+  }
+  .cv-run {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .cv-run-form {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+:root[data-motion="off"] .cv-node.pulse .cv-node-box,
+:root[data-motion="off"] .cv-step {
+  animation: none;
+}

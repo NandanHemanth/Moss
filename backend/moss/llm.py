@@ -3,6 +3,7 @@
 Offline is a real mode, not an error: the pipeline then uses the extraction stored with
 seeded events and a rule-based proposer, so the demo still runs with no key and no quota.
 """
+import contextvars
 import json
 import logging
 import re
@@ -47,6 +48,19 @@ def mark_down(model: str, error: Exception | str) -> None:
     state["last_error"] = f"gemini {model}: {error}"[:300]
 
 
+actor: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("moss_actor", default=("system", "stag"))
+
+
+def record(model: str, tokens: int | None, purpose: str = "") -> None:
+    """Count tokens against the person and agent that caused the call (system = background pipeline)."""
+    if not tokens:
+        return
+    from . import db
+    user_id, agent_id = actor.get()
+    db.insert("usage", {"id": db.new_id("use"), "ts": db.now(), "user_id": user_id, "agent_id": agent_id, "model": model,
+                        "tokens": int(tokens), "purpose": purpose})
+
+
 class LLMUnavailable(Exception):
     pass
 
@@ -78,6 +92,7 @@ async def _gemini_call(prompt: str, system: str, model: str, schema: type[BaseMo
         cfg.response_mime_type = "application/json"
         cfg.response_schema = schema
     resp = await _gemini().aio.models.generate_content(model=model, contents=prompt, config=cfg)
+    record(model, getattr(resp.usage_metadata, "total_token_count", None), schema.__name__ if schema else "text")
     return resp.text or ""
 
 
@@ -97,7 +112,9 @@ async def _fallback_call(prompt: str, system: str, schema: type[BaseModel] | Non
         r = await http.post(f"{settings.fallback_base_url.rstrip('/')}/chat/completions", json=body,
                             headers={"Authorization": f"Bearer {settings.fallback_key}"})
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"] or ""
+        data = r.json()
+        record(settings.fallback_model, (data.get("usage") or {}).get("total_tokens"), "fallback")
+        return data["choices"][0]["message"]["content"] or ""
 
 
 def _parse(text: str, schema: type[T]) -> T:

@@ -57,6 +57,16 @@ event (meeting, email, Slack, Jira, Confluence)
 Offline mode uses the extraction stored with the seeded data and a rule-based proposer, so the demo
 still runs if a quota is exhausted.
 
+## What is on screen
+
+- **Clearing** (manager) / **My work** (employee): an Ask bar, five tiles, and what needs a decision.
+  Manager tiles: burn-down, team tokens, cloud bill, team, stakeholder summary. Employee tiles: velocity, tokens,
+  suggested next tasks, risks, deadlines. Sprint points and cloud spend are sample figures and are tagged as such.
+- **Ask**, **Timeline**, **Graph**, **Memory**.
+- **Canvas** (manager): draw a workflow from nodes described in plain language, or let Stag draw it from one sentence.
+  A live workflow handles matching events; its actions still wait for approval.
+- When an event shows the team needs outside help, the proposal offers to draft an email to HR, Finance or DevOps.
+
 ## Stack
 
 - Backend: Python, FastAPI, Google ADK (agents), AG-UI endpoint for Stag (`/agui/stag`), Graphiti, SQLite
@@ -92,7 +102,7 @@ To connect real services, follow [`docs/03-setup.md`](docs/03-setup.md). After e
 
 ```powershell
 cd backend
-python -m pytest -q      # 55 tests, all offline
+python -m pytest -q      # 61 tests, all offline
 ```
 
 ## Docs
@@ -101,7 +111,8 @@ python -m pytest -q      # 55 tests, all offline
 - [`docs/01-decisions-and-plan.md`](docs/01-decisions-and-plan.md) — decisions, architecture, scope
 - [`docs/02-api-contract.md`](docs/02-api-contract.md) — every endpoint with sample responses
 - [`docs/03-setup.md`](docs/03-setup.md) — connecting Gemini, Neo4j, Atlassian, Slack, Google, ElevenLabs
-- [`docs/04-demo-and-memory.md`](docs/04-demo-and-memory.md) — demo runbook, the email-to-ticket test, and why three memory layers
+- [`docs/04-demo-and-memory.md`](docs/04-demo-and-memory.md) — demo runbook, the one test email, the Canvas, and why three memory layers
+- [`docs/05-deploy.md`](docs/05-deploy.md) — running Moss as one process, and what to set before hosting it
 
 ## Honest status
 

@@ -1,7 +1,7 @@
 // One fetch wrapper for every call to the Moss API. Adds X-Moss-User and normalises errors.
 import type { HttpError } from "@refinedev/core";
-import { API_URL } from "../config";
-import { userStore } from "../session";
+import { api } from "../config";
+import { accessStore, userStore } from "../session";
 
 export type Query = Record<string, string | number | boolean | null | undefined>;
 
@@ -16,7 +16,8 @@ export function withQuery(url: string, query?: Query): string {
 }
 
 export function authHeaders(userId: string = userStore.get()): Record<string, string> {
-  return { "X-Moss-User": userId };
+  const code = accessStore.code();
+  return code ? { "X-Moss-User": userId, "X-Moss-Code": code } : { "X-Moss-User": userId };
 }
 
 function detailToMessage(detail: unknown, fallback: string): string {
@@ -36,11 +37,13 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Override the user for this call (used while switching users). */
   userId?: string;
+  /** Do not open the access-code screen when this call is refused (used by the screen itself). */
+  quiet?: boolean;
 }
 
 /** Fetch that returns the raw Response (used for audio). Throws HttpError on network failure only. */
 export async function rawRequest(url: string, opts: RequestOptions = {}): Promise<Response> {
-  const full = withQuery(/^https?:\/\//.test(url) ? url : `${API_URL}${url}`, opts.query);
+  const full = withQuery(api(url), opts.query);
   const headers: Record<string, string> = { Accept: "application/json", ...authHeaders(opts.userId), ...opts.headers };
   const init: RequestInit = { method: (opts.method || "GET").toUpperCase(), headers, signal: opts.signal };
   if (opts.body !== undefined) {
@@ -51,7 +54,7 @@ export async function rawRequest(url: string, opts: RequestOptions = {}): Promis
     return await fetch(full, init);
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
-    const err: HttpError = { message: `Cannot reach the Moss API at ${API_URL}. Is the backend running?`, statusCode: 0 };
+    const err: HttpError = { message: "Moss cannot reach its server. Check your connection and try again.", statusCode: 0 };
     throw err;
   }
 }
@@ -73,9 +76,16 @@ export async function request<T = unknown>(url: string, opts: RequestOptions = {
   if (!res.ok) {
     const detail = payload && typeof payload === "object" && "detail" in payload ? (payload as { detail: unknown }).detail : payload;
     const err: HttpError = { message: detailToMessage(detail, `Request failed (${res.status})`), statusCode: res.status };
+    if (isAccessCodeError(err) && !opts.quiet) accessStore.demand();
     throw err;
   }
   return payload as T;
+}
+
+/** 401 "access code required": the hosted demo is locked and the code is missing or wrong. */
+export function isAccessCodeError(e: unknown): boolean {
+  const err = e as { statusCode?: number; message?: string } | null;
+  return !!err && err.statusCode === 401 && /access code required/i.test(err.message ?? "");
 }
 
 export function errorMessage(e: unknown, fallback = "Something went wrong."): string {

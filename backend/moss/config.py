@@ -22,6 +22,8 @@ class Settings:
     # tried in order when a Gemini model is overloaded (503), rate-limited (429) or unknown
     gemini_fallback_models = [m.strip() for m in env("GEMINI_FALLBACK_MODELS",
                                  "gemini-3.6-flash,gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.8-flash").split(",") if m.strip()]
+    # Graphiti makes several LLM calls per ingested item; give it its own model so it cannot use up the chat quota.
+    graphiti_model = env("GRAPHITI_MODEL", "gemini-3.1-flash-lite")
     fallback_base_url = env("FALLBACK_BASE_URL")                      # e.g. http://localhost:3001/v1 (freellmapi)
     fallback_key = env("FALLBACK_API_KEY", "none")
     fallback_model = env("FALLBACK_MODEL")
@@ -46,6 +48,14 @@ class Settings:
     google_token = env("GOOGLE_TOKEN", str(ROOT / "token.json"))
     calendar_send_updates = env("CALENDAR_SEND_UPDATES", "all")       # all | externalOnly | none: email invited guests?
 
+    # Who to write to when a proposal needs help from outside the team (drafts only, never sent automatically)
+    help_emails = {"HR": env("HR_EMAIL", "hr@tidewater.example"), "Finance": env("FINANCE_EMAIL", "finance@tidewater.example"),
+                   "DevOps": env("DEVOPS_EMAIL", "devops@tidewater.example")}
+
+    # Deployment
+    access_code = env("MOSS_ACCESS_CODE")                 # when set, every API call must carry it (X-Moss-Code)
+    frontend_dist = Path(env("MOSS_FRONTEND_DIST", str(ROOT.parent / "frontend" / "dist")))
+
     # Voice
     elevenlabs_key = env("ELEVENLABS_API_KEY")
     elevenlabs_voice = env("ELEVENLABS_VOICE_ID")
@@ -65,6 +75,13 @@ class Settings:
 
 
 settings = Settings()
+
+# Hosted deployments cannot run the browser sign-in: accept the Google token as an environment variable instead.
+if env("GOOGLE_TOKEN_JSON") and not Path(settings.google_token).exists():
+    try:
+        Path(settings.google_token).write_text(env("GOOGLE_TOKEN_JSON"), encoding="utf-8")
+    except OSError:
+        pass
 
 # The grove. Names live here only; rename freely.
 AGENTS = {

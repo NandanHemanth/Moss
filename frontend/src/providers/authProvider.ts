@@ -4,7 +4,7 @@ import type { AuthProvider } from "@refinedev/core";
 import { DEFAULT_USER } from "../config";
 import { userStore } from "../session";
 import type { Role, User } from "../types";
-import { request } from "./http";
+import { isAccessCodeError, request } from "./http";
 
 const identityCache = new Map<string, Promise<User>>();
 
@@ -43,7 +43,7 @@ export const authProvider: AuthProvider = {
 
   async onError(error) {
     // 401 = the stored user id is unknown to this backend (e.g. the database was re-seeded differently).
-    if (error?.statusCode === 401 && userStore.get() !== DEFAULT_USER) {
+    if (error?.statusCode === 401 && !isAccessCodeError(error) && userStore.get() !== DEFAULT_USER) {
       userStore.set(DEFAULT_USER);
     }
     return {};

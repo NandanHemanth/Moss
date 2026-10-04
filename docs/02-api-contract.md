@@ -833,3 +833,517 @@ Employees get only events they took part in.
 ```
 
 Insights may now have kind `request` in addition to decision / commitment / risk.
+
+---
+# Additions (v0.2): dashboard tiles, help requests, canvas workflows, access code
+
+## GET /api/dashboard — instant tiles, role-specific. `source` is `live` or `sample` (sample = seeded figures, show a small "sample" tag).
+Manager:
+```json
+{
+    "role": "manager",
+    "sample_note": "Sample figures for the fictional Tidewater Labs. Sprint points and cloud spend have no live source connected yet.",
+    "tokens": {
+        "total": 0,
+        "today": 0,
+        "series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "calls": 0,
+        "source": "live",
+        "by_person": []
+    },
+    "burndown": {
+        "sprint": "Sprint 14",
+        "committed": 34,
+        "length_days": 10,
+        "remaining": [
+            34,
+            34,
+            31,
+            29,
+            26,
+            22,
+            19
+        ],
+        "ideal": [
+            34.0,
+            30.6,
+            27.2,
+            23.8,
+            20.4,
+            17.0,
+            13.6,
+            10.2,
+            6.8,
+            3.4,
+            0.0
+        ],
+        "velocity": 28.7,
+        "history": [
+            26,
+            29,
+            31
+        ],
+        "unit": "points",
+        "source": "sample"
+    },
+    "cloud": {
+        "currency": "USD",
+        "budget": 6000,
+        "last_month": 5630,
+        "month_to_date": 1240,
+        "forecast": 6240,
+        "by_service": [
+            {
+                "name": "LLM inference",
+                "amount": 520
+            },
+            {
+                "name": "Compute",
+                "amount": 390
+            },
+            {
+                "name": "Database",
+                "amount": 210
+            },
+            {
+                "name": "Storage and network",
+                "amount": 120
+            }
+        ],
+        "source": "sample"
+    },
+    "team": {
+        "people": [
+            {
+                "name": "Marcus Lee",
+                "open": 2,
+                "overdue": 0,
+                "done": 0
+            },
+            {
+                "name": "Sam Ortiz",
+                "open": 2,
+                "overdue": 0,
+                "done": 0
+            },
+            {
+                "name": "Priya Raman",
+                "open": 1,
+                "overdue": 0,
+                "done": 0
+            },
+            {
+                "name": "Elena Petrova",
+                "open": 1,
+                "overdue": 0,
+                "done": 0
+            }
+        ],
+        "open": 6,
+        "overdue": 0,
+        "approved": 0,
+        "skipped": 0,
+        "pending": 3,
+        "source": "live"
+    },
+    "risks": {
+        "count": 5,
+        "items": [
+            {
+                "text": "There is no rollback plan for the provider switch yet",
+                "event_id": "meeting:platform-sync",
+                "event_title": "Platform sync",
+                "account": "Provider migration",
+                "occurred_at": "2026-10-04T14:00"
+            },
+            {
+                "text": "Staging provider keys expire Friday",
+                "event_id": "meeting:platform-sync",
+                "event_title": "Platform sync",
+                "account": "Provider migration",
+                "occurred_at": "2026-10-04T14:00"
+            },
+            {
+                "text": "Staging provider keys expire Friday with no owner for rotation",
+                "event_id": "slack:elena-keys",
+                "event_title": "#platform \u00b7 staging keys",
+                "account": "Provider migration",
+                "occurred_at": "2026-10-03T16:20"
+            },
+            {
+                "text": "Harborline has not received the payroll integration scope that was promised",
+                "event_id": "gmail:dana-payroll",
+                "event_title": "Payroll integration before the January cycle",
+                "account": "Harborline Freight",
+                "occurred_at": "2026-10-03T09:12"
+            },
+            {
+                "text": "Only CSV export is ready; the API format is not built",
+                "event_id": "meeting:pinecrest-intro",
+                "event_title": "Pinecrest Health intro call",
+                "account": "Pinecrest Health",
+                "occurred_at": "2026-09-26T11:00"
+            }
+        ],
+        "source": "live"
+    }
+}
+```
+Employee (`velocity` can be null when the person has no sprint data):
+```json
+{
+    "role": "employee",
+    "sample_note": "Sample figures for the fictional Tidewater Labs. Sprint points and cloud spend have no live source connected yet.",
+    "tokens": {
+        "total": 0,
+        "today": 0,
+        "series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        "calls": 0,
+        "source": "live"
+    },
+    "velocity": {
+        "average": 8.3,
+        "history": [
+            8,
+            9,
+            8
+        ],
+        "sprint": "Sprint 14",
+        "done": 5,
+        "committed": 10,
+        "unit": "points",
+        "source": "sample"
+    },
+    "risks": {
+        "count": 3,
+        "items": [
+            {
+                "text": "There is no rollback plan for the provider switch yet",
+                "event_id": "meeting:platform-sync",
+                "event_title": "Platform sync",
+                "account": "Provider migration",
+                "occurred_at": "2026-10-04T14:00"
+            },
+            {
+                "text": "Staging provider keys expire Friday",
+                "event_id": "meeting:platform-sync",
+                "event_title": "Platform sync",
+                "account": "Provider migration",
+                "occurred_at": "2026-10-04T14:00"
+            },
+            {
+                "text": "Harborline's January payroll cycle is a hard deadline",
+                "event_id": "meeting:harborline-qbr",
+                "event_title": "Harborline quarterly review",
+                "account": "Harborline Freight",
+                "occurred_at": "2026-09-13T15:00"
+            }
+        ],
+        "source": "live"
+    },
+    "deadlines": {
+        "count": 2,
+        "overdue": 0,
+        "items": [
+            {
+                "id": "com_15ed7ec955",
+                "text": "Confirm the payroll export format with Harborline's IT team",
+                "owner": "Sam Ortiz",
+                "due": null,
+                "status": "open",
+                "account": "Harborline Freight",
+                "event_title": "Harborline quarterly review",
+                "overdue": false
+            },
+            {
+                "id": "com_4988682463",
+                "text": "Extend the provider timeout tests to cover OpenAI",
+                "owner": "Sam Ortiz",
+                "due": null,
+                "status": "open",
+                "account": "Provider migration",
+                "event_title": "Platform sync",
+                "overdue": false
+            }
+        ],
+        "source": "live"
+    }
+}
+```
+
+## GET /api/dashboard/brief — suggested next tasks (+ stakeholder `summary` for managers). May take a few seconds when the LLM is used; cached. `source` is `llm` or `rules`.
+```json
+{
+    "next_tasks": [
+        {
+            "task": "Marcus: Set up a payroll integration demo for Pinecrest",
+            "why": "Due 2026-10-07"
+        },
+        {
+            "task": "Marcus: Send the payroll integration scope to Harborline",
+            "why": "Due 2026-10-09"
+        },
+        {
+            "task": "Elena: Write the rollback plan for the endpoint switch",
+            "why": "Due 2026-10-11"
+        }
+    ],
+    "summary": [
+        "Decided: Set up a new summarisation API endpoint on OpenAI instead of the existing Claude one",
+        "Decided: Keep Claude as the fallback provider for two weeks",
+        "Main risk: There is no rollback plan for the provider switch yet"
+    ],
+    "source": "rules",
+    "route": "offline"
+}
+```
+
+## Proposals now also carry `escalations` (help requests; usually empty) and `workflow` (name of the canvas workflow that produced it, or null)
+```json
+{
+ "id": "prop_8ca3aa80bb",
+ "workflow": null,
+ "escalations": [
+  {
+   "id": "esc_4870ebf030",
+   "team": "DevOps",
+   "reason": "Staging provider keys expire Friday and nobody owns the rotation; there is no rollback plan yet.",
+   "subject": "Help needed: staging key rotation and rollback for the provider switch",
+   "body": "Hi DevOps team,\n\nIn today's Platform sync we decided to move summarisation from Claude to OpenAI. Two things need your help:\n\n1. The staging provider keys expire on Friday and nobody owns the rotation.\n2. We have no rollback plan if the new provider degrades.\n\nCould someone from DevOps pair with Elena Petrova this week on both? Happy to share details.\n\nThanks,\nMaya",
+   "status": "suggested",
+   "result": null
+  }
+ ]
+}
+```
+## POST /api/escalations/{id}/draft (manager) — creates an email DRAFT to that team; returns the escalation with `status` `drafted` (or `failed` with `result.error`) and `result` `{id,url,text}`. Idempotent.
+
+## Canvas workflows (manager only; 403 for employees)
+### GET /api/workflows/node-types
+```json
+[
+ {
+  "type": "input",
+  "label": "Input",
+  "agent_id": null,
+  "can_trigger": true,
+  "can_act": false,
+  "hint": "Start by hand with any text.",
+  "agent_name": null
+ },
+ {
+  "type": "meeting",
+  "label": "Meeting",
+  "agent_id": "owl",
+  "can_trigger": true,
+  "can_act": false,
+  "hint": "Starts when a meeting transcript arrives.",
+  "agent_name": "Owl"
+ },
+ {
+  "type": "gmail",
+  "label": "Gmail",
+  "agent_id": "raven",
+  "can_trigger": true,
+  "can_act": true,
+  "hint": "Start on an email, or draft one.",
+  "agent_name": "Raven"
+ },
+ {
+  "type": "calendar",
+  "label": "Calendar",
+  "agent_id": "raven",
+  "can_trigger": true,
+  "can_act": true,
+  "hint": "Start on an event, or schedule one.",
+  "agent_name": "Raven"
+ }
+]
+... 9 types: input, meeting, gmail, calendar, slack, jira, confluence, llm, output
+```
+### POST /api/workflows/generate body `{"prompt": str}` — Stag designs a flow from a sentence. Not saved. `source` = model route or `rules`.
+```json
+{
+    "name": "When an email reports a bug",
+    "description": "When an email reports a bug, create a Jira ticket and post it in Slack",
+    "graph": {
+        "nodes": [
+            {
+                "id": "n1",
+                "type": "gmail",
+                "label": "New email",
+                "x": 60.0,
+                "y": 140.0,
+                "trigger": "When an email reports a bug, create a Jira ticket and post it in Slack",
+                "description": "Starts the workflow.",
+                "input": "",
+                "output": "The item's text."
+            },
+            {
+                "id": "n2",
+                "type": "llm",
+                "label": "Understand it",
+                "x": 330.0,
+                "y": 180.0,
+                "trigger": "",
+                "description": "Read the input and work out what is being asked.",
+                "input": "The item's text.",
+                "output": "A short summary and what to do."
+            },
+            {
+                "id": "n3",
+                "type": "jira",
+                "label": "Create ticket",
+                "x": 600.0,
+                "y": 140.0,
+                "trigger": "",
+                "description": "Create ticket based on the summary.",
+                "input": "The summary.",
+                "output": "Queued for manager approval."
+            },
+            {
+                "id": "n4",
+                "type": "slack",
+                "label": "Post to Slack",
+                "x": 870.0,
+                "y": 180.0,
+                "trigger": "",
+                "description": "Post to Slack based on the summary.",
+                "input": "The summary.",
+                "output": "Queued for manager approval."
+            },
+            {
+                "id": "n5",
+                "type": "output",
+                "label": "Tell the manager",
+                "x": 1140.0,
+                "y": 140.0,
+                "trigger": "",
+                "description": "Report what was prepared.",
+                "input": "Everything above.",
+                "output": "One sentence."
+            }
+        ],
+        "edges": [
+            {
+                "id": "n1-n2",
+                "source": "n1",
+                "target": "n2"
+            },
+            {
+                "id": "n2-n3",
+                "source": "n2",
+                "target": "n3"
+            },
+            {
+                "id": "n3-n4",
+                "source": "n3",
+                "target": "n4"
+            },
+            {
+                "id": "n4-n5",
+                "source": "n4",
+                "target": "n5"
+            }
+        ]
+    },
+    "source": "rules"
+}
+```
+### POST /api/workflows body `{name, description?, enabled?, graph}` → saved workflow · PUT /api/workflows/{id} (any subset) · DELETE /api/workflows/{id} · GET /api/workflows
+Graph: `nodes[{id,type,label,x,y,trigger,description,input,output}]`, `edges[{id,source,target}]`. A tool node with no incoming edge is the trigger; later tool nodes are actions.
+```json
+{
+ "id": "wf_a6ed4dffec",
+ "name": "Bug mail to ticket",
+ "description": "",
+ "enabled": true,
+ "graph": "(same shape as above)",
+ "created_by": "maya",
+ "updated_at": "2026-10-04T06:44:10+00:00",
+ "last_run": null
+}
+```
+### POST /api/workflows/{id}/run body `{"input": str, "queue": bool, "graph"?: {...}, "name"?: str}` — use id `draft` with `graph` to run an unsaved canvas. `queue:false` = dry run; `queue:true` sends the actions to the approval queue and returns `proposal_id`.
+```json
+{
+    "workflow_id": null,
+    "status": "ok",
+    "steps": [
+        {
+            "node_id": "n1",
+            "type": "gmail",
+            "label": "New email",
+            "role": "trigger",
+            "output": "Subject: Export button broken\nThe export button crashes since this morning. Please fix before Friday."
+        },
+        {
+            "node_id": "n2",
+            "type": "llm",
+            "label": "Understand it",
+            "role": "llm",
+            "output": "Read the input and work out what is being asked.: Subject: Export button broken"
+        },
+        {
+            "node_id": "n3",
+            "type": "jira",
+            "label": "Create ticket",
+            "role": "action",
+            "output": "Create ticket: Read the input and work out what is being asked.: Subject: Export button broken",
+            "action": {
+                "kind": "jira.create_issue",
+                "title": "Create ticket",
+                "detail": "Create ticket: Read the input and work out what is being asked.: Subject: Export button broken",
+                "params": {
+                    "summary": "Read the input and work out what is being asked.: Subject: Export button broken",
+                    "description": "Read the input and work out what is being asked.: Subject: Export button broken"
+                }
+            }
+        },
+        {
+            "node_id": "n4",
+            "type": "slack",
+            "label": "Post to Slack",
+            "role": "action",
+            "output": "Post to Slack: Read the input and work out what is being asked.: Subject: Export button broken",
+            "action": {
+                "kind": "slack.post_message",
+                "title": "Post to Slack",
+                "detail": "Post to Slack: Read the input and work out what is being asked.: Subject: Export button broken",
+                "params": {
+                    "channel": "platform",
+                    "text": "Read the input and work out what is being asked.: Subject: Export button broken\nRead the input and work out what is being asked.: Subject: Export button broken"
+                }
+            }
+        },
+        {
+            "node_id": "n5",
+            "type": "output",
+            "label": "Tell the manager",
+            "role": "output",
+            "output": "Workflow finished for \u201cRead the input and work out what is being asked.: Subject: Export button broken\u201d."
+        }
+    ],
+    "summary": "2 actions prepared by \u201cBug mail to ticket\u201d.",
+    "proposal_id": null,
+    "route": "offline"
+}
+```
+## Access code (hosted demo)
+`GET /api/health` → `{"ok":true,"locked":bool}` (never gated). When `locked`, every other `/api/*` call needs header `X-Moss-Code: <code>` (the SSE stream takes `&code=`); without it the API answers 401 `{"detail":"access code required"}`.

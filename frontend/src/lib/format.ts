@@ -99,3 +99,21 @@ export function formatMs(ms: number | null | undefined): string {
 }
 
 export const formatCount = (n: number | null | undefined): string => (typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("en-US") : "—");
+
+/** Compact numbers for tiles: 950, 1.2k, 12.4k, 124k, 1.3M. */
+export function formatCompact(n: number | null | undefined): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  const trim = (v: number, digits: number) => v.toFixed(digits).replace(/\.0+$/, "");
+  if (abs < 1000) return trim(n, Number.isInteger(n) ? 0 : 1);
+  if (abs < 100_000) return `${trim(n / 1000, 1)}k`;
+  if (abs < 1_000_000) return `${Math.round(n / 1000)}k`;
+  return `${trim(n / 1_000_000, 1)}M`;
+}
+
+/** Money for tiles: "$1,240", "$6.2k" when compact. */
+export function formatMoney(n: number | null | undefined, currency = "USD", compact = false): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
+  const symbol = currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : `${currency} `;
+  return `${symbol}${compact ? formatCompact(n) : Math.round(n).toLocaleString("en-US")}`;
+}

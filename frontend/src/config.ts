@@ -1,8 +1,17 @@
-/** Base URL of the Moss backend. Override with VITE_API_URL (see .env.example). */
-export const API_URL: string = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+/** Base URL of the Moss backend, without a trailing slash.
+ *  - `VITE_API_URL` always wins when it is set.
+ *  - Production build: "" (same origin, so every call is a relative `/api/...`).
+ *  - Dev server: http://localhost:8000. */
+const fromEnv = (import.meta.env.VITE_API_URL ?? "").trim();
+export const API_URL: string = (fromEnv || (import.meta.env.PROD ? "" : "http://localhost:8000")).replace(/\/+$/, "");
 
-/** Build an absolute API URL from a path such as "/api/status". */
-export const api = (path: string): string => `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
+/** Build an API URL from a path such as "/api/status". Already-resolved URLs pass through unchanged. */
+export function api(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  if (API_URL && (p === API_URL || p.startsWith(`${API_URL}/`))) return p;
+  return `${API_URL}${p}`;
+}
 
 export const DEFAULT_USER = "maya";
 /** Demo users shown first in the user switcher. */

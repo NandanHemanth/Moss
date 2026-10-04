@@ -6,7 +6,7 @@ import { api } from "../config";
 import { useAllowed } from "../hooks/useMoss";
 import { firstName, formatDue, formatWhen, isHttpUrl, plural } from "../lib/format";
 import { errorMessage } from "../providers/http";
-import type { Insight, Proposal, ProposedAction, User } from "../types";
+import type { Escalation, Insight, Proposal, ProposedAction, User } from "../types";
 import { AgentAvatar, PlainAvatar, useAgentDirectory } from "./AgentAvatar";
 
 const SOURCE_NOUN: Record<string, string> = {
@@ -229,6 +229,90 @@ function ActionRow({ action: serverAction, canDecide }: { action: ProposedAction
   );
 }
 
+// ---------------------------------------------------------------- ask for help (manager only)
+/** One suggested help request. The button creates an email DRAFT for that team; nothing is ever sent. */
+function EscalationItem({ escalation: initial }: { escalation: Escalation }) {
+  const invalidate = useInvalidate();
+  const { mutateAsync } = useCustomMutation<Escalation, HttpError, Record<string, never>>();
+  const [local, setLocal] = useState<Escalation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  // The server copy wins once it has caught up with the draft call.
+  const esc = initial.status === "suggested" && local ? local : initial;
+  const panelId = `esc-${esc.id}`;
+
+  const draft = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await mutateAsync({ url: api(`/api/escalations/${encodeURIComponent(esc.id)}/draft`), method: "post", values: {} });
+      setLocal(res.data);
+      void invalidate({ resource: "proposals", invalidates: ["list"] });
+    } catch (e) {
+      setError(errorMessage(e, "The draft could not be created."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const failure = esc.status === "failed" ? esc.result?.error || "The draft could not be created." : error;
+  return (
+    <div className="help-item" data-escalation={esc.id} data-status={esc.status}>
+      <div className="help-controls">
+        {esc.status === "drafted" ? (
+          <span className="chip ok" data-testid="draft-ready">
+            ✓ Draft ready for {esc.team}
+            {isHttpUrl(esc.result?.url) ? (
+              <>
+                {" · "}
+                <a href={esc.result.url} target="_blank" rel="noreferrer">
+                  Open draft
+                </a>
+              </>
+            ) : null}
+          </span>
+        ) : (
+          <button type="button" className="btn" disabled={busy} onClick={draft} title={esc.reason} data-testid="draft-help">
+            {busy ? "Drafting…" : failure ? `Try again: draft email to ${esc.team}` : `Draft email to ${esc.team}`}
+          </button>
+        )}
+        <button type="button" className="linkish small" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)}>
+          {open ? "Hide preview" : "Preview"}
+        </button>
+      </div>
+      {esc.status === "drafted" ? <div className="small">Saved as a draft. Nothing has been sent.</div> : null}
+      {failure ? (
+        <div className="result fail" role="alert">
+          Draft failed: {failure}
+        </div>
+      ) : null}
+      {open ? (
+        <div className="help-preview" id={panelId}>
+          <div className="small">Why: {esc.reason}</div>
+          <div className="help-mail">
+            <b>{esc.subject}</b>
+            <p>{esc.body}</p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function HelpRow({ escalations }: { escalations: Escalation[] }) {
+  return (
+    <div className="help-row" data-section="help">
+      <span className="small help-q">Needs help from outside the team?</span>
+      <div className="help-items">
+        {escalations.map((e) => (
+          <EscalationItem key={e.id} escalation={e} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- the card
 export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; users?: User[] }) {
   const { nameOf } = useAgentDirectory();
@@ -242,7 +326,8 @@ export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; use
   const insights = proposal.insights ?? ev?.meta?._extraction?.insights ?? [];
   const pendingCount = proposal.actions.filter((a) => a.status === "pending").length;
 
-  const requester = proposal.actions.find((a) => a.requested_by)?.requested_by ?? null;
+  // Workflow runs record "workflow:<name>" as the requester; the workflow tag already says that.
+  const requester = proposal.actions.find((a) => a.requested_by && !a.requested_by.startsWith("workflow:"))?.requested_by ?? null;
   const requesterName = requester ? (users.find((u) => u.id === requester)?.name ?? requester) : null;
 
   const approveAll = async () => {
@@ -258,6 +343,8 @@ export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; use
     }
   };
 
+  const workflow = proposal.workflow?.trim() || null;
+  const escalations = proposal.escalations ?? [];
   const facts: string[] = [];
   if (ev) {
     facts.push(`${nameOf(ev.agent_id)} ${SOURCE_NOUN[ev.source] ?? `· ${ev.source}`}`);
@@ -265,17 +352,25 @@ export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; use
     if (ev.participants?.length) facts.push(plural(ev.participants.length, "person", "people"));
     if (ev.account) facts.push(ev.account);
   } else {
-    facts.push(requesterName ? `Requested by ${requesterName}` : "Requested in a chat with an agent");
+    if (requesterName) facts.push(`Requested by ${requesterName}`);
+    else if (!workflow) facts.push("Requested in a chat with an agent");
     facts.push(formatWhen(proposal.created_at));
   }
 
   return (
     <div className="card proposal" data-proposal={proposal.id} data-status={proposal.status}>
       <div className="row top">
-        {ev ? <AgentAvatar id={ev.agent_id} size="lg" /> : <PlainAvatar glyph="💬" label="Requested in chat" size="lg" />}
+        {ev ? <AgentAvatar id={ev.agent_id} size="lg" /> : workflow ? <PlainAvatar glyph="⚙️" label="Workflow run" size="lg" /> : <PlainAvatar glyph="💬" label="Requested in chat" size="lg" />}
         <div className="grow">
-          <h2>{ev ? `${ev.title} · ${formatWhen(ev.occurred_at)}` : "Requested in chat"}</h2>
-          <div className="small">{facts.filter(Boolean).join(" · ")}</div>
+          <h2>{ev ? `${ev.title} · ${formatWhen(ev.occurred_at)}` : workflow ? "Workflow run" : "Requested in chat"}</h2>
+          <div className="small proposal-facts">
+            {facts.filter(Boolean).join(" · ")}
+            {workflow ? (
+              <span className="tag workflow-tag" data-testid="workflow-tag">
+                via workflow: {workflow}
+              </span>
+            ) : null}
+          </div>
           {ev?.summary ? <p className="summary">{ev.summary}</p> : null}
           {insights.length ? (
             <div style={{ marginTop: 8 }}>
@@ -286,7 +381,7 @@ export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; use
           ) : null}
         </div>
         {canDecide && pendingCount > 0 ? (
-          <button className="btn p" disabled={busyAll} onClick={approveAll}>
+          <button className="btn p approve-all" disabled={busyAll} onClick={approveAll}>
             {busyAll ? "Approving…" : "Approve all"}
           </button>
         ) : null}
@@ -301,6 +396,7 @@ export function ProposalCard({ proposal, users = [] }: { proposal: Proposal; use
           <ActionRow key={a.id} action={a} canDecide={canDecide} />
         ))}
       </div>
+      {canDecide && escalations.length ? <HelpRow escalations={escalations} /> : null}
     </div>
   );
 }

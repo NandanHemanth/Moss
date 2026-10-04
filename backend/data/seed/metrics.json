@@ -1,0 +1,88 @@
+{
+ "note": "Sample figures for the fictional Tidewater Labs. Sprint points and cloud spend have no live source connected yet.",
+ "sprints": [
+  {
+   "name": "Sprint 11",
+   "committed": 30,
+   "completed": 26,
+   "by_person": {
+    "Sam Ortiz": 8,
+    "Priya Raman": 10,
+    "Elena Petrova": 8
+   }
+  },
+  {
+   "name": "Sprint 12",
+   "committed": 32,
+   "completed": 29,
+   "by_person": {
+    "Sam Ortiz": 9,
+    "Priya Raman": 11,
+    "Elena Petrova": 9
+   }
+  },
+  {
+   "name": "Sprint 13",
+   "committed": 34,
+   "completed": 31,
+   "by_person": {
+    "Sam Ortiz": 8,
+    "Priya Raman": 13,
+    "Elena Petrova": 10
+   }
+  }
+ ],
+ "current": {
+  "name": "Sprint 14",
+  "length_days": 10,
+  "committed": 34,
+  "remaining": [
+   34,
+   34,
+   31,
+   29,
+   26,
+   22,
+   19
+  ],
+  "by_person": {
+   "Sam Ortiz": {
+    "committed": 10,
+    "done": 5
+   },
+   "Priya Raman": {
+    "committed": 13,
+    "done": 6
+   },
+   "Elena Petrova": {
+    "committed": 11,
+    "done": 4
+   }
+  }
+ },
+ "cloud": {
+  "currency": "USD",
+  "budget": 6000,
+  "last_month": 5630,
+  "month_to_date": 1240,
+  "forecast": 6240,
+  "by_service": [
+   {
+    "name": "LLM inference",
+    "amount": 520
+   },
+   {
+    "name": "Compute",
+    "amount": 390
+   },
+   {
+    "name": "Database",
+    "amount": 210
+   },
+   {
+    "name": "Storage and network",
+    "amount": 120
+   }
+  ]
+ }
+}

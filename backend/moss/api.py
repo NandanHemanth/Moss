@@ -8,10 +8,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import actions, agents, cache, connectors, db, graph, llm, notify, pipeline, seed, voice
+from . import actions, agents, cache, connectors, dashboard, db, graph, llm, notify, pipeline, seed, voice, workflows
 from .config import AGENTS, settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -74,7 +74,19 @@ async def lifespan(_: FastAPI):
         task.cancel()
 
 
-app = FastAPI(title="Moss", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Moss", version="0.2.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def access_gate(request: Request, call_next):
+    """Optional shared access code for a hosted demo (set MOSS_ACCESS_CODE). The role switcher is not real login."""
+    path = request.url.path
+    if settings.access_code and request.method != "OPTIONS" and path.startswith(("/api/", "/agui/")) and path != "/api/health":
+        if (request.headers.get("x-moss-code") or request.query_params.get("code")) != settings.access_code:
+            return JSONResponse({"detail": "access code required"}, status_code=401)
+    return await call_next(request)
+
+
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -98,6 +110,11 @@ def _first(user: dict) -> str:
 
 
 # ------------------------------------------------------------------ identity + status
+@app.get("/api/health")
+def health():
+    return {"ok": True, "locked": bool(settings.access_code)}
+
+
 @app.get("/api/users")
 def users():
     return db.q("SELECT id, name, role, title FROM users ORDER BY role DESC, name")
@@ -272,6 +289,94 @@ async def ask(body: Ask, user: dict = Depends(current_user)):
     return await agents.ask(body.agent_id, body.message, user, body.session_id)
 
 
+# ------------------------------------------------------------------ dashboard tiles
+@app.get("/api/dashboard")
+def dashboard_tiles(user: dict = Depends(current_user)):
+    return dashboard.tiles(user)
+
+
+@app.get("/api/dashboard/brief")
+async def dashboard_brief(user: dict = Depends(current_user)):
+    return await dashboard.brief(user)
+
+
+# ------------------------------------------------------------------ asking HR, Finance or DevOps for help
+@app.post("/api/escalations/{esc_id}/draft")
+async def draft_escalation(esc_id: str, user: dict = Depends(manager)):
+    try:
+        return await actions.draft_help(esc_id, user)
+    except KeyError:
+        raise HTTPException(404, "No such help request")
+
+
+# ------------------------------------------------------------------ canvas workflows (managers)
+class WorkflowBody(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    enabled: bool | None = None
+    graph: dict | None = None
+
+
+class GenerateBody(BaseModel):
+    prompt: str
+
+
+class RunBody(BaseModel):
+    input: str = ""
+    queue: bool = False
+    graph: dict | None = None      # run the canvas as it is on screen, even if unsaved
+    name: str | None = None
+
+
+@app.get("/api/workflows/node-types")
+def workflow_node_types(_: dict = Depends(manager)):
+    return [{**n, "agent_name": AGENTS[n["agent_id"]]["name"] if n["agent_id"] else None} for n in workflows.NODE_TYPES]
+
+
+@app.get("/api/workflows")
+def workflow_list(_: dict = Depends(manager)):
+    return workflows.list_all()
+
+
+@app.post("/api/workflows")
+def workflow_create(body: WorkflowBody, user: dict = Depends(manager)):
+    return workflows.save(None, body.model_dump(), user)
+
+
+@app.post("/api/workflows/generate")
+async def workflow_generate(body: GenerateBody, user: dict = Depends(manager)):
+    if not body.prompt.strip():
+        raise HTTPException(422, "Describe the workflow first.")
+    llm.actor.set((user["id"], "stag"))
+    db.audit(user["id"], "workflow.generate", body.prompt[:120])
+    return await workflows.generate(body.prompt)
+
+
+@app.put("/api/workflows/{wid}")
+def workflow_update(wid: str, body: WorkflowBody, user: dict = Depends(manager)):
+    if not workflows.get(wid):
+        raise HTTPException(404, "No such workflow")
+    return workflows.save(wid, body.model_dump(), user)
+
+
+@app.delete("/api/workflows/{wid}")
+def workflow_delete(wid: str, user: dict = Depends(manager)):
+    workflows.delete(wid, user)
+    return {"deleted": wid}
+
+
+@app.post("/api/workflows/{wid}/run")
+async def workflow_run(wid: str, body: RunBody, user: dict = Depends(manager)):
+    """Try a workflow on some text. With queue=true its actions go to the approval queue; otherwise it is a dry run."""
+    wf = workflows.get(wid) if wid != "draft" else {"id": None, "name": body.name or "Draft", "graph": {"nodes": [], "edges": []}}
+    if not wf:
+        raise HTTPException(404, "No such workflow")
+    if body.graph is not None:
+        wf = {**wf, "graph": workflows.clean_graph(body.graph), "name": body.name or wf["name"]}
+    llm.actor.set((user["id"], "stag"))
+    return await workflows.run(wf, text=body.input, queue=body.queue, user=user)
+
+
 # ------------------------------------------------------------------ memory: what each layer is for, with live numbers
 @app.get("/api/memory")
 def memory(user: dict = Depends(current_user)):
@@ -433,3 +538,16 @@ try:
         app.include_router(_router)
 except Exception as e:  # AG-UI is optional; the REST ask endpoint is the default path
     log.warning("AG-UI endpoint not mounted: %s", e)
+
+
+# ------------------------------------------------------------------ serve the built frontend (one process to deploy)
+_dist = settings.frontend_dist
+if (_dist / "index.html").is_file():
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path.startswith(("api/", "agui/", "assets/")) and not (_dist / path).is_file():
+            raise HTTPException(404, "Not found")
+        target = (_dist / path).resolve()
+        if path and target.is_file() and _dist.resolve() in target.parents:
+            return FileResponse(target)
+        return FileResponse(_dist / "index.html")

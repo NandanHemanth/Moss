@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import date, datetime, timedelta
 
-from . import actions, db, graph, llm, notify
+from . import actions, db, graph, llm, notify, workflows
 from .config import AGENTS, SOURCE_AGENT, settings
 from .schemas import Extraction, Proposal
 
@@ -36,6 +36,9 @@ Propose between 0 and 4 concrete next actions for the manager to approve. Rules:
 - Do not propose something the related context shows already exists.
 - Default Slack channel is #{channel}. Jira project is {project}. Today is {today}; schedule follow-ups on a weekday.
 - notification: one or two plain sentences for the manager, no greeting.
+- help: almost always empty. Add an entry only when the event shows the team cannot resolve this alone:
+  staffing, capacity, hiring or leave -> HR; budget, pricing, spend or contract cost -> Finance;
+  infrastructure, deployments, environments, credentials or outages -> DevOps. Write the email they would receive.
 Manager feedback so far: {feedback}"""
 
 
@@ -142,6 +145,7 @@ def store_event(ev: dict, dedupe: bool = False) -> bool:
 async def process_event(event_id: str, historical: bool = False, wait_graph: bool = False) -> dict:
     """Run one event through the pipeline. `historical` = learn from it but do not propose or notify."""
     event = db.one("SELECT * FROM events WHERE id=?", (event_id,))
+    llm.actor.set(("system", event["agent_id"]))
     ex = await extract(event, prefer_stored=historical)
     account = ex.account or event.get("account")
     db.update("events", event_id, {"summary": ex.summary, "importance": ex.importance, "account": account, "processed": 1})
@@ -159,10 +163,19 @@ async def process_event(event_id: str, historical: bool = False, wait_graph: boo
     if historical:
         return result
     notify.publish("timeline", {"id": event_id})
-    if ex.importance >= 3 and (ex.insights or event["source"] in ("gmail", "slack")):
+    handled = await workflows.run_for_event(event, ex.summary)   # a manager's canvas workflow takes precedence
+    if handled:
+        result.update(proposal_id=handled["proposal_id"], workflows=handled["names"])
+        if handled["proposal_id"]:
+            actions.save_help(handled["proposal_id"], actions.rule_help(event, ex.insights))
+    elif ex.importance >= 3 and (ex.insights or event["source"] in ("gmail", "slack")):
         prop = await propose(event, ex)
         saved = actions.add_proposal(event_id, [a.model_dump() if hasattr(a, "model_dump") else a for a in prop.actions])
         result["proposal_id"] = saved["id"] if saved else None
+        if saved:
+            helps = [h.model_dump() for h in prop.help] if llm.mode() != "offline" or prop.help else actions.rule_help(event, ex.insights)
+            actions.save_help(saved["id"], helps)
+            notify.publish("proposal", {"id": saved["id"]})
         notify.notify(event["agent_id"], prop.notification, event_id)
     elif ex.importance >= 4:
         notify.notify(event["agent_id"], f"{event['title']}: {ex.summary}", event_id)

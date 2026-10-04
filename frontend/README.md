@@ -29,19 +29,31 @@ npm run typecheck  # tsc --noEmit only
 
 ## Environment
 
-| Variable       | Default                 | Meaning                                    |
-| -------------- | ----------------------- | ------------------------------------------ |
-| `VITE_API_URL` | `http://localhost:8000` | Base URL of the Moss API, no trailing slash |
+| Variable       | Default                                                          | Meaning                                     |
+| -------------- | ---------------------------------------------------------------- | ------------------------------------------- |
+| `VITE_API_URL` | dev server: `http://localhost:8000` · production build: same origin | Base URL of the Moss API, no trailing slash |
 
 Copy `.env.example` to `.env` to change it. Every request carries `X-Moss-User: <user id>`; the SSE stream uses
 `?user=<id>` because `EventSource` cannot send headers.
 
 Choices remembered in `localStorage`: `moss.user` (demo user, default `maya`), `moss.theme` (`light` | `dark`),
-`moss.voice` (`on` | `off`, default off), `moss.motion` (`on` | `off`, default on).
+`moss.voice` (`on` | `off`, default off), `moss.motion` (`on` | `off`, default on), `moss.code` (access code, only
+when the API is locked).
+
+## Deploying
+
+`npm run build` produces `dist/`. With `VITE_API_URL` unset, the production build calls the API on its own origin
+(relative `/api/...`, including the SSE stream), so serve `dist/` and the backend behind one host; set
+`VITE_API_URL` at build time only when the API lives elsewhere. Every URL goes through `api()` in `src/config.ts`.
+
+**Access code.** On start the app calls `GET /api/health`. If it answers `locked: true` and no code is stored (or any
+call returns 401 "access code required"), a single centred screen asks for the code (`components/AccessGate.tsx`).
+An accepted code is stored as `moss.code` and sent as `X-Moss-Code` on every request and as `&code=` on the SSE URL.
+When the API is not locked nothing changes.
 
 **Motion preference.** Animation is an in-app choice, not the OS one: it defaults to **on** for everyone and
 deliberately ignores `prefers-reduced-motion` (Windows with "Animation effects" turned off used to get a frozen
-grove and no panel fade). The "Motion on / Motion off" toggle in the dark theme's top bar flips it; the value is
+grove and no panel fade). The Motion switch in the settings popover (gear icon, top bar) flips it; the value is
 mirrored as `data-motion="on|off"` on `<html>`. With motion off the grove shows one still frame (no render loop)
 and every CSS transition/animation that is keyed on `[data-motion="off"]` is disabled. No stylesheet uses
 `@media (prefers-reduced-motion)` any more.
@@ -68,10 +80,16 @@ src/
     agents.ts                  THE agent avatar map (glyph + colour per agent id) and mode-tag helpers
     format.ts                  dates, relative time, greeting, small text helpers
   components/
-    Shell.tsx                  layout: top-right controls (user, theme, voice, "View the grove"), sidebar, status strip, live bridge
+    Shell.tsx                  layout: top bar (identity, user switch, theme switch, grove button, settings gear),
+                               sidebar (nav, compact agents, one status line with a details popover), live bridge
+    Dashboard.tsx              the five tiles under the Ask bar (GET /api/dashboard + /api/dashboard/brief) and their details
+    Charts.tsx                 tiny inline SVG charts for the tiles (sparkline, bars, burn-down, budget bar)
+    Popover.tsx                the one popover (portal, kept inside the viewport, closes on Escape / outside click)
+    AccessGate.tsx             access-code screen for a locked API
     AgentAvatar.tsx            round agent badge + agents context (names always come from GET /api/agents)
-    ProposalCard.tsx           proposal: event, insight chips, action rows with Approve / Edit / Skip / Approve all
-    CommitmentsTable.tsx       open commitments with "Done" (and undo)
+    ProposalCard.tsx           proposal: event, insight chips, action rows with Approve / Edit / Skip / Approve all,
+                               "via workflow" tag, and the manager's "ask for help" row (email drafts, never sent)
+    CommitmentsTable.tsx       open commitments with "Done" (and undo); first 5, then "Show all (n)"
     Whispers.tsx               notification feed (right rail)
     GroveBackdrop.tsx          dark theme backdrop: lazy-loads the 3D grove, falls back to Scenery
     Scenery.tsx                flat forest SVG + fireflies; only the fallback when WebGL is unavailable
@@ -81,6 +99,7 @@ src/
     Ask.tsx                    "/ask"  chat with one agent
     Timeline.tsx               "/timeline"  unified timeline, account + source filters
     Graph.tsx                  "/graph"  force-directed knowledge graph
+    Canvas.tsx                 "/canvas"  workflow canvas, managers only, lazy-loaded (employees are sent to "/")
     Memory.tsx                 "/memory"  the three memory layers (cache, knowledge graph, SQLite) with live numbers
                                from GET /api/memory, and "Prove it": POST /api/memory/compare for one question
   grove/                       the 3D "Enchanted grove" scene (its own lazy chunk, see below)
@@ -88,6 +107,9 @@ src/
     theme.css                  design tokens for both themes + components ported from the mockup
     app.css                    forms, states, status strip, ask, timeline, graph, small-screen tweaks
     grove.css                  dark theme only: canvas layer, glass panels, open band, showcase mode
+    ui.css                     loaded last: the spacing scale (--s1…--s5), top bar, compact sidebar, popovers,
+                               dashboard tiles and charts, section headers, help row, access-code screen
+    canvas.css                 the canvas page
 ```
 
 ## How the pieces talk to the API

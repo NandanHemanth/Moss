@@ -9,7 +9,7 @@ from .config import settings
 
 _lock = threading.RLock()
 _conn: sqlite3.Connection | None = None
-JSON_COLS = {"participants", "meta", "params", "result"}
+JSON_COLS = {"participants", "meta", "params", "result", "graph", "steps"}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, name TEXT, role TEXT, title TEXT, email TEXT);
@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS facts(id TEXT PRIMARY KEY, subject TEXT, subject_type
   fact TEXT, event_id TEXT, valid_at TEXT, account TEXT);
 CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY, tool TEXT, kind TEXT, payload TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS audit(id TEXT PRIMARY KEY, ts TEXT, user_id TEXT, action TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS usage(id TEXT PRIMARY KEY, ts TEXT, user_id TEXT, agent_id TEXT, model TEXT, tokens INTEGER, purpose TEXT);
+CREATE TABLE IF NOT EXISTS escalations(id TEXT PRIMARY KEY, proposal_id TEXT, team TEXT, reason TEXT, subject TEXT, body TEXT,
+  status TEXT DEFAULT 'suggested', result TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS workflows(id TEXT PRIMARY KEY, name TEXT, description TEXT, enabled INTEGER DEFAULT 0, graph TEXT,
+  created_by TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS workflow_runs(id TEXT PRIMARY KEY, workflow_id TEXT, ts TEXT, trigger TEXT, status TEXT, steps TEXT, proposal_id TEXT);
 CREATE INDEX IF NOT EXISTS ix_events_time ON events(occurred_at);
 CREATE INDEX IF NOT EXISTS ix_facts_subject ON facts(subject);
 """

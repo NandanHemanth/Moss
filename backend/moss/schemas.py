@@ -54,6 +54,58 @@ class ProposedAction(BaseModel):
     params: ActionParams
 
 
+class HelpRequest(BaseModel):
+    team: Literal["HR", "Finance", "DevOps"]
+    reason: str = Field(description="One sentence: why this team is needed.")
+    subject: str
+    body: str = Field(description="Short, polite email asking for the specific help. Plain text.")
+
+
 class Proposal(BaseModel):
     notification: str = Field(description="One or two sentences telling the manager what happened and what is waiting.")
     actions: list[ProposedAction] = []
+    help: list[HelpRequest] = Field(default=[], description="Usually empty. Only when the team clearly needs outside help.")
+
+
+# ---- canvas workflows
+NodeType = Literal["input", "meeting", "gmail", "calendar", "slack", "jira", "confluence", "llm", "output"]
+
+
+class NodeDraft(BaseModel):
+    type: NodeType
+    label: str = Field(description="Two to four words.")
+    trigger: Optional[str] = Field(default=None, description="First node only: when this workflow should start, in plain words.")
+    description: str = Field(description="What this node does, in one or two plain sentences.")
+    input: Optional[str] = Field(default=None, description="What it receives.")
+    output: Optional[str] = Field(default=None, description="What it produces.")
+
+
+class WorkflowDraft(BaseModel):
+    name: str
+    description: str
+    nodes: list[NodeDraft] = Field(description="In execution order, first node is the trigger, last is an output node.")
+
+
+class StepResult(BaseModel):
+    node_id: str
+    output: str = Field(description="What this node produced: the text, the message, or a one-line description of the action.")
+    params: Optional[ActionParams] = Field(default=None, description="Only for gmail, calendar, slack, jira and confluence action nodes.")
+
+
+class WorkflowResult(BaseModel):
+    steps: list[StepResult]
+    summary: str = Field(description="One sentence for the manager.")
+
+
+class Matches(BaseModel):
+    workflow_ids: list[str] = Field(default=[], description="Ids of the workflows whose trigger condition this event satisfies.")
+
+
+class BriefTask(BaseModel):
+    task: str = Field(description="Imperative, under 12 words.")
+    why: str = Field(description="Under 16 words, grounded in the facts given.")
+
+
+class Brief(BaseModel):
+    next_tasks: list[BriefTask] = Field(description="At most three.")
+    summary: list[str] = Field(default=[], description="At most three short sentences for stakeholders. Empty if not asked.")

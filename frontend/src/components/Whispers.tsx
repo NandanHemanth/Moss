@@ -21,7 +21,7 @@ function useNow(intervalMs = 30_000): number {
 export function Whispers() {
   const { data, isLoading, error, refetch } = useMossList<Whisper>("notifications", { limit: 20 });
   const { nameOf } = useAgentDirectory();
-  const { enabled, speakingId } = useVoice();
+  const { speakingId } = useVoice();
   const now = useNow();
 
   // Ids present on first load are "old"; anything that shows up later animates in.
@@ -35,15 +35,14 @@ export function Whispers() {
     <>
       <div className="voice">
         <h3>Whispers</h3>
-        <VoiceToggle compact />
+        <VoiceToggle />
       </div>
-      <div className="small">{enabled ? "Short status updates, read aloud" : "Short status updates from the agents"}</div>
       {isLoading ? (
         <Loading label="Listening…" />
       ) : error ? (
         <ErrorNote error={error} onRetry={() => refetch()} />
       ) : items.length === 0 ? (
-        <Empty title="All quiet">Updates appear here when an agent has something to tell you.</Empty>
+        <Empty title="All quiet">Updates from the agents appear here.</Empty>
       ) : (
         <div aria-live="polite" data-section="whispers">
           {items.map((n) => (

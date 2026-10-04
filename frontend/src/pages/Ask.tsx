@@ -365,12 +365,16 @@ export function AskPage() {
             </span>
           </>
         ) : null}
-        <div className="lbl">Suggested questions</div>
-        {SUGGESTIONS.map((s) => (
-          <button key={s} type="button" className="acct suggestion-row" disabled={!agent || busy} onClick={() => agent && void ask(agent, s)}>
-            {s}
-          </button>
-        ))}
+        {thread.length > 0 ? (
+          <>
+            <div className="lbl">Suggested questions</div>
+            {SUGGESTIONS.map((s) => (
+              <button key={s} type="button" className="acct suggestion-row" disabled={!agent || busy} onClick={() => agent && void ask(agent, s)}>
+                {s}
+              </button>
+            ))}
+          </>
+        ) : null}
         {!isManager ? (
           <>
             <div className="lbl">Good to know</div>

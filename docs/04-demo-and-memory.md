@@ -49,6 +49,44 @@ button, which understands five items per click to stay inside the free LLM quota
 This path was run end to end on 4 October 2026 with Gemini, live Jira and live Slack, using an email event
 injected the way the watcher stores it. The Gmail fetch itself was not run on this laptop (no Google token here).
 
+## Demo 3 — draw a workflow on the Canvas
+
+1. As Maya open **Canvas**. Type into the Stag bar: *"When a customer emails about a bug or an outage, summarise it,
+   create a Jira ticket, tell the team in Slack and draft a reply"* and press **Build**. Stag draws the nodes.
+2. Click a node: each one is defined in plain language (Trigger, Description, Input, Output). Drag more nodes from the palette.
+3. **Test run** → **Dry run** shows what each step would produce. **Send to approvals** queues the actions.
+4. **Save** and switch **Live** on. From now on a matching email runs this workflow instead of Stag's default plan,
+   and its actions still wait for approval in the Clearing, tagged "via workflow".
+
+## One email that exercises everything
+
+Send this to the connected Gmail address from any other account, with the backend running and the Clearing open as Maya:
+
+> **Subject:** Urgent: payroll export failing for the Gulf pilot
+>
+> Hi Maya,
+>
+> Since this morning the payroll CSV export for our Gulf pilot fails with a timeout, and the overtime hours column was
+> missing in yesterday's file. Our payroll run is on Friday, so we need a fix by Thursday. Your staging server also seems
+> to be down, so we cannot test anything.
+>
+> Can your team fix the export, let the platform team know, and set up a 30-minute call with me tomorrow?
+>
+> Thanks,
+> Dana Okafor
+> Operations Lead, Harborline Freight
+
+What should happen within about a minute:
+
+1. A whisper is read aloud; a card appears under **Needs your decision**, linked to the Harborline account the graph already knows.
+2. Proposed actions: a Jira ticket, a Slack message, a calendar invite for the call, and a reply draft.
+3. A quiet row offers **Draft email to DevOps**, because the email says staging is down. HR and Finance are not offered.
+4. Approve: the ticket appears in Jira project `PLAT`, the message in Slack, the event in Calendar, the drafts in Gmail.
+5. The tiles update (tokens used, team, stakeholder summary), and **Ask → Stag → "What is open for Harborline Freight?"** now includes this email.
+
+This exact email was run through the pipeline on 4 October 2026 with Gemini: it produced those four actions and the DevOps
+help request. That run used an injected event and mock tools; the Gmail fetch on a second laptop is still the untested step.
+
 ## Why three layers of memory
 
 Open the **Memory** page. Every number on it is measured live.

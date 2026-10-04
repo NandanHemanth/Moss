@@ -185,3 +185,83 @@ async def test_request_email_gets_a_proposal_offline(client):
     out = await pipeline.process_event("gmail:test-1")
     kinds = [a["kind"] for a in actions.get_proposal(out["proposal_id"])["actions"]]
     assert "jira.create_issue" in kinds and "slack.post_message" in kinds
+
+
+def test_dashboard_tiles_by_role(client):
+    m = client.get("/api/dashboard", headers=MAYA).json()
+    assert m["role"] == "manager" and m["burndown"]["source"] == "sample" and m["cloud"]["source"] == "sample"
+    assert len(m["burndown"]["ideal"]) == m["burndown"]["length_days"] + 1 and m["team"]["people"] and "by_person" in m["tokens"]
+    s = client.get("/api/dashboard", headers=SAM).json()
+    assert s["role"] == "employee" and s["velocity"]["average"] > 0 and "cloud" not in s and "team" not in s
+    assert all("Sam" in d["owner"] for d in s["deadlines"]["items"])
+    b = client.get("/api/dashboard/brief", headers=SAM).json()
+    assert b["source"] == "rules" and 0 < len(b["next_tasks"]) <= 3 and b["summary"] == []
+    assert client.get("/api/dashboard/brief", headers=MAYA).json()["summary"]
+
+
+def test_help_request_only_when_relevant(client):
+    done = [p for p in client.get("/api/proposals?status=all", headers=MAYA).json() if p["event"] and p["event"]["title"] == "Platform sync"]
+    esc = done[0]["escalations"]
+    assert [e["team"] for e in esc] == ["DevOps"] and esc[0]["status"] == "suggested"
+    assert client.post(f"/api/escalations/{esc[0]['id']}/draft", headers=SAM).status_code == 403
+    out = client.post(f"/api/escalations/{esc[0]['id']}/draft", headers=MAYA).json()
+    assert out["status"] == "drafted" and "devops@" in db.q("SELECT payload FROM outbox WHERE tool='gmail' ORDER BY created_at DESC LIMIT 1")[0]["payload"]
+    assert client.post(f"/api/escalations/{esc[0]['id']}/draft", headers=MAYA).json()["status"] == "drafted"  # idempotent
+    client.post("/api/demo/meeting-ended", headers=MAYA, json={})  # Harborline call: no outside help needed
+    other = [p for p in client.get("/api/proposals?status=all", headers=MAYA).json() if p["event"] and "Harborline payroll" in p["event"]["title"]]
+    assert other and other[0]["escalations"] == []
+
+
+def test_canvas_workflow_build_run_and_trigger(client):
+    assert client.get("/api/workflows", headers=SAM).status_code == 403
+    kinds = {n["type"] for n in client.get("/api/workflows/node-types", headers=MAYA).json()}
+    assert {"input", "gmail", "calendar", "slack", "jira", "confluence", "llm", "output"} <= kinds
+    draft = client.post("/api/workflows/generate", headers=MAYA,
+                        json={"prompt": "When an email reports a bug, create a Jira ticket and post it in Slack"}).json()
+    types = [n["type"] for n in draft["graph"]["nodes"]]
+    assert types[0] == "gmail" and types[-1] == "output" and "jira" in types and "slack" in types and "llm" in types
+    assert len(draft["graph"]["edges"]) == len(types) - 1
+    dry = client.post("/api/workflows/draft/run", headers=MAYA, json={"input": "The export is broken\nPlease fix it.", "graph": draft["graph"]}).json()
+    assert dry["status"] == "ok" and dry["proposal_id"] is None
+    assert [s["action"]["kind"] for s in dry["steps"] if s.get("action")] == ["jira.create_issue", "slack.post_message"]
+    wf = client.post("/api/workflows", headers=MAYA, json={"name": "Bug mail to ticket", "graph": draft["graph"], "enabled": True}).json()
+    assert wf["enabled"] is True and client.get("/api/workflows", headers=MAYA).json()[0]["id"] == wf["id"]
+    queued = client.post(f"/api/workflows/{wf['id']}/run", headers=MAYA, json={"input": "Login page crashes", "queue": True}).json()
+    prop = next(p for p in client.get("/api/proposals", headers=MAYA).json() if p["id"] == queued["proposal_id"])
+    assert prop["workflow"] == "Bug mail to ticket" and len(prop["actions"]) == 2
+    assert client.put(f"/api/workflows/{wf['id']}", headers=MAYA, json={"enabled": False}).json()["enabled"] is False
+    assert client.delete(f"/api/workflows/{wf['id']}", headers=MAYA).json() == {"deleted": wf["id"]}
+
+
+async def test_enabled_workflow_handles_matching_email(client):
+    from moss import actions, pipeline, workflows
+    maya = db.one("SELECT * FROM users WHERE id='maya'")
+    draft = await workflows.generate("When an email reports a bug, create a Jira ticket and post it in Slack")
+    draft["graph"]["nodes"][0]["trigger"] = "an email that reports a bug or something broken"
+    wf = workflows.save(None, {"name": "Bug triage", "graph": draft["graph"], "enabled": True}, maya)
+    pipeline.store_event({"id": "gmail:wf-1", "source": "gmail", "title": "Bug: export button broken", "occurred_at": "2026-10-04T02:00",
+                          "body": "The export button is broken since this morning. This bug blocks our reports.", "participants": ["Riya Shah"],
+                          "meta": {"from_email": "riya@example.org"}})
+    out = await pipeline.process_event("gmail:wf-1")
+    assert out["workflows"] == ["Bug triage"] and actions.get_proposal(out["proposal_id"])["workflow"] == "Bug triage"
+    pipeline.store_event({"id": "gmail:wf-2", "source": "gmail", "title": "Lunch on Friday?", "occurred_at": "2026-10-04T02:05",
+                          "body": "Are you free for lunch on Friday?", "participants": ["Riya Shah"], "meta": {}})
+    assert "workflows" not in await pipeline.process_event("gmail:wf-2")
+    workflows.delete(wf["id"], maya)
+
+
+def test_access_code_gate(client, monkeypatch):
+    from moss.config import settings
+    monkeypatch.setattr(settings, "access_code", "grove")
+    assert client.get("/api/health").json() == {"ok": True, "locked": True}
+    assert client.get("/api/me", headers=MAYA).status_code == 401
+    assert client.get("/api/me", headers={**MAYA, "X-Moss-Code": "grove"}).status_code == 200
+
+
+def test_tokens_are_counted_per_person(client):
+    from moss import llm
+    llm.actor.set(("sam", "fox"))
+    llm.record("test-model", 1200, "chat")
+    assert client.get("/api/dashboard", headers=SAM).json()["tokens"]["total"] == 1200
+    team = client.get("/api/dashboard", headers=MAYA).json()["tokens"]
+    assert team["total"] >= 1200 and any(p["name"] == "Sam Ortiz" for p in team["by_person"])

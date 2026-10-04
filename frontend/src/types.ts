@@ -117,6 +117,17 @@ export interface MossEvent {
   } | null;
 }
 
+/** A suggested request for help from another team. Drafting creates an email DRAFT; nothing is ever sent. */
+export interface Escalation {
+  id: string;
+  team: string;
+  reason: string;
+  subject: string;
+  body: string;
+  status: "suggested" | "drafted" | "failed" | string;
+  result: { id?: string; url?: string; text?: string; error?: string } | null;
+}
+
 export interface Proposal {
   id: string;
   event_id: string | null;
@@ -125,6 +136,9 @@ export interface Proposal {
   actions: ProposedAction[];
   event: MossEvent | null;
   insights?: Insight[];
+  /** Name of the canvas workflow that produced this proposal, if any. */
+  workflow?: string | null;
+  escalations?: Escalation[];
 }
 
 export interface Commitment {
@@ -257,4 +271,109 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+// ---------------------------------------------------------------- dashboard tiles (GET /api/dashboard)
+/** `sample` = seeded figures with no live source connected; the UI marks those tiles. */
+export type TileSource = "live" | "sample" | string;
+
+export interface DashTokens {
+  total: number;
+  today: number;
+  series: number[];
+  calls: number;
+  source: TileSource;
+  by_person?: Array<{ name: string; tokens: number }>;
+}
+
+export interface DashRisk {
+  text: string;
+  event_id: string | null;
+  event_title: string | null;
+  account: string | null;
+  occurred_at: string | null;
+}
+
+export interface DashRisks {
+  count: number;
+  items: DashRisk[];
+  source: TileSource;
+}
+
+export interface DashBurndown {
+  sprint: string;
+  committed: number;
+  length_days: number;
+  remaining: number[];
+  ideal: number[];
+  velocity: number;
+  history: number[];
+  unit: string;
+  source: TileSource;
+}
+
+export interface DashCloud {
+  currency: string;
+  budget: number;
+  last_month: number;
+  month_to_date: number;
+  forecast: number;
+  by_service: Array<{ name: string; amount: number }>;
+  source: TileSource;
+}
+
+export interface DashTeam {
+  people: Array<{ name: string; open: number; overdue: number; done: number }>;
+  open: number;
+  overdue: number;
+  approved: number;
+  skipped: number;
+  pending: number;
+  source: TileSource;
+}
+
+export interface DashVelocity {
+  average: number;
+  history: number[];
+  sprint: string;
+  done: number;
+  committed: number;
+  unit: string;
+  source: TileSource;
+}
+
+export interface DashDeadlines {
+  count: number;
+  overdue: number;
+  items: Array<{ id: string; text: string; owner: string | null; due: string | null; status: string; account: string | null; event_title: string | null; overdue: boolean }>;
+  source: TileSource;
+}
+
+export interface ManagerDashboard {
+  role: "manager";
+  sample_note: string;
+  tokens: DashTokens;
+  burndown: DashBurndown;
+  cloud: DashCloud;
+  team: DashTeam;
+  risks: DashRisks;
+}
+
+export interface EmployeeDashboard {
+  role: "employee";
+  sample_note: string;
+  tokens: DashTokens;
+  velocity: DashVelocity | null;
+  risks: DashRisks;
+  deadlines: DashDeadlines;
+}
+
+export type Dashboard = ManagerDashboard | EmployeeDashboard;
+
+/** GET /api/dashboard/brief (can take seconds when the LLM writes it). */
+export interface DashBrief {
+  next_tasks: Array<{ task: string; why: string }>;
+  summary: string[];
+  source: "llm" | "rules" | string;
+  route?: string;
 }

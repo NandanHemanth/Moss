@@ -180,6 +180,7 @@ TOOLS = {
 }
 COMMON = """Today is {today}. Answer from tool results only; if the tools return nothing relevant, say you found nothing.
 Never invent names, dates, ticket keys or quotes. Be brief: a short paragraph or a few bullets.
+Write plain text only: no Markdown, no asterisks, no headings. Start each bullet with "• ".
 You cannot change anything directly: write tools only queue an action for manager approval, so say it is waiting for approval."""
 
 
@@ -229,12 +230,14 @@ async def _run(tree: dict, agent_id: str, message: str, user: dict, session_id: 
     if not await svc.get_session(app_name="moss", user_id=user["id"], session_id=sid):
         await svc.create_session(app_name="moss", user_id=user["id"], session_id=sid)
     runner = Runner(agent=tree[agent_id], app_name="moss", session_service=svc)
-    answer, trace = "", []
+    answer, trace, tokens = "", [], 0
     async for ev in runner.run_async(user_id=user["id"], session_id=sid,
                                      new_message=types.Content(role="user", parts=[types.Part(text=message)])):
         trace += [fc.name for fc in ev.get_function_calls()]
+        tokens += getattr(getattr(ev, "usage_metadata", None), "total_token_count", 0) or 0
         if ev.is_final_response() and ev.content and ev.content.parts:
             answer = "".join(p.text or "" for p in ev.content.parts)
+    llm.record(str(getattr(tree[agent_id].model, "model", tree[agent_id].model)), tokens, "chat")
     return answer.strip(), trace
 
 
@@ -268,6 +271,7 @@ async def _offline_answer(agent_id: str, message: str, c: dict) -> str:
 async def ask(agent_id: str, message: str, user: dict, session_id: str = "default") -> dict:
     c = {"user": user, "sources": [], "queued": [], "event_ids": visible_event_ids(user), "facts": 0}
     token = _ctx.set(c)
+    llm.actor.set((user["id"], agent_id))
     started, before = time.perf_counter(), dict(cache.stats)
     route, trace, answer = "offline", [], ""
     try:

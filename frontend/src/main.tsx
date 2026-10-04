@@ -5,6 +5,7 @@ import { applyMotion, applyTheme, motionStore, themeStore } from "./session";
 import "./styles/theme.css";
 import "./styles/app.css";
 import "./styles/grove.css";
+import "./styles/ui.css";
 
 applyTheme(themeStore.get());
 applyMotion(motionStore.get());
