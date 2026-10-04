@@ -1,0 +1,14 @@
+# secrets and local state
+backend/.env
+backend/credentials.json
+backend/token.json
+backend/data/*.db
+backend/data/*.db-*
+# python
+.venv/
+__pycache__/
+.pytest_cache/
+# node
+frontend/node_modules/
+frontend/dist/
+frontend/.env

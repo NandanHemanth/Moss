@@ -1,0 +1,73 @@
+{
+ "company": "Tidewater Labs",
+ "about": "Fictional company used for the Moss demo. Tidewater sells a workforce-data API platform to enterprises.",
+ "users": [
+  {
+   "id": "maya",
+   "name": "Maya Chen",
+   "role": "manager",
+   "title": "Engineering Manager",
+   "email": "maya@tidewater.example"
+  },
+  {
+   "id": "sam",
+   "name": "Sam Ortiz",
+   "role": "employee",
+   "title": "Backend Engineer",
+   "email": "sam@tidewater.example"
+  },
+  {
+   "id": "priya",
+   "name": "Priya Raman",
+   "role": "employee",
+   "title": "Senior Engineer",
+   "email": "priya@tidewater.example"
+  },
+  {
+   "id": "marcus",
+   "name": "Marcus Lee",
+   "role": "employee",
+   "title": "Account Manager",
+   "email": "marcus@tidewater.example"
+  },
+  {
+   "id": "elena",
+   "name": "Elena Petrova",
+   "role": "employee",
+   "title": "Site Reliability Engineer",
+   "email": "elena@tidewater.example"
+  }
+ ],
+ "accounts": [
+  {
+   "id": "harborline",
+   "name": "Harborline Freight",
+   "kind": "customer",
+   "summary": "Logistics customer since March. Main ask is payroll integration before the January cycle. Dana Okafor (Ops lead) decides."
+  },
+  {
+   "id": "pinecrest",
+   "name": "Pinecrest Health",
+   "kind": "customer",
+   "summary": "Hospital group evaluating Tidewater. Luis Ferreira wants payroll integration for nursing staff."
+  },
+  {
+   "id": "lumen",
+   "name": "Lumen Retail",
+   "kind": "customer",
+   "summary": "Retail customer up for renewal in Q1. Aisha Karim is asking about SSO."
+  },
+  {
+   "id": "provider-migration",
+   "name": "Provider migration",
+   "kind": "project",
+   "summary": "Moving LLM-backed endpoints behind a provider abstraction so models can be swapped."
+  },
+  {
+   "id": "payroll-integration",
+   "name": "Payroll integration",
+   "kind": "project",
+   "summary": "Export workforce data to customer payroll systems (CSV and API)."
+  }
+ ]
+}

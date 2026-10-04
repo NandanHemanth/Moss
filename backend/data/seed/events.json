@@ -1,0 +1,578 @@
+[
+ {
+  "id": "meeting:harborline-qbr",
+  "source": "meeting",
+  "title": "Harborline quarterly review",
+  "days_ago": 21,
+  "time": "15:00",
+  "account": "Harborline Freight",
+  "participants": [
+   "Maya Chen",
+   "Marcus Lee",
+   "Sam Ortiz",
+   "Dana Okafor"
+  ],
+  "body": "Marcus: Thanks for joining, Dana. Usage is up 30 percent since June.\nDana: The product is working. My one big ask is payroll. We re-key hours into payroll every two weeks and it costs us two days.\nMaya: We have payroll export on the roadmap. Sam, where are we?\nSam: CSV export works in staging. The API format is not started.\nDana: We need this before the January payroll cycle. That is a hard date for us.\nMarcus: Could we pilot with one region first?\nDana: Yes. Start with the Gulf region.\nMaya: Agreed, we pilot payroll integration with the Gulf region first.\nMarcus: I will send you the integration scope by October 8.\nSam: I will confirm the export format with your IT team.\nDana: Good. Also our renewal comes up in Q1, so this matters.",
+  "_extraction": {
+   "summary": "Harborline's main ask is payroll integration before the January payroll cycle. The team agreed to pilot it with the Gulf region first.",
+   "intent": "Review the account and agree a payroll integration path",
+   "importance": 4,
+   "account": "Harborline Freight",
+   "insights": [
+    {
+     "kind": "decision",
+     "text": "Pilot payroll integration with Harborline's Gulf region first",
+     "owner": null,
+     "due": null
+    },
+    {
+     "kind": "commitment",
+     "text": "Send the payroll integration scope to Harborline",
+     "owner": "Marcus Lee",
+     "due": "{d+5}"
+    },
+    {
+     "kind": "commitment",
+     "text": "Confirm the payroll export format with Harborline's IT team",
+     "owner": "Sam Ortiz",
+     "due": null
+    },
+    {
+     "kind": "risk",
+     "text": "Harborline's January payroll cycle is a hard deadline",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Dana Okafor",
+     "type": "person"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    },
+    {
+     "name": "renewal in Q1",
+     "type": "topic"
+    }
+   ]
+  }
+ },
+ {
+  "id": "meeting:pinecrest-intro",
+  "source": "meeting",
+  "title": "Pinecrest Health intro call",
+  "days_ago": 8,
+  "time": "11:00",
+  "account": "Pinecrest Health",
+  "participants": [
+   "Marcus Lee",
+   "Maya Chen",
+   "Luis Ferreira"
+  ],
+  "body": "Luis: We run 14 hospitals. Nursing shifts change daily and payroll never matches.\nMarcus: So the interest is payroll integration specifically?\nLuis: Yes. If you can push approved hours into our payroll system we would move quickly.\nMaya: We are piloting that with another customer this quarter.\nLuis: Can we see a demo next week?\nMarcus: I will set up a payroll integration demo for next week.\nMaya: We should be clear the API format is not ready yet, only CSV.",
+  "_extraction": {
+   "summary": "Pinecrest Health is interested in payroll integration for nursing staff and asked for a demo next week.",
+   "intent": "Qualify a new customer and their payroll needs",
+   "importance": 4,
+   "account": "Pinecrest Health",
+   "insights": [
+    {
+     "kind": "commitment",
+     "text": "Set up a payroll integration demo for Pinecrest",
+     "owner": "Marcus Lee",
+     "due": "{d+3}"
+    },
+    {
+     "kind": "risk",
+     "text": "Only CSV export is ready; the API format is not built",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Luis Ferreira",
+     "type": "person"
+    },
+    {
+     "name": "Pinecrest Health",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "gmail:dana-payroll",
+  "source": "gmail",
+  "title": "Payroll integration before the January cycle",
+  "days_ago": 1,
+  "time": "09:12",
+  "account": "Harborline Freight",
+  "participants": [
+   "Dana Okafor",
+   "Marcus Lee"
+  ],
+  "meta": {
+   "to": "marcus@tidewater.example"
+  },
+  "body": "Hi Marcus,\n\nFollowing up on our review. We need payroll integration live before the January cycle, and I have not seen the scope yet. Can we get a call this week to walk through it? Our IT team is free Thursday.\n\nDana Okafor\nOperations Lead, Harborline Freight",
+  "_extraction": {
+   "summary": "Dana at Harborline is still waiting for the payroll integration scope and asks for a call this week.",
+   "intent": "Chase the promised scope and book a call",
+   "importance": 4,
+   "account": "Harborline Freight",
+   "insights": [
+    {
+     "kind": "risk",
+     "text": "Harborline has not received the payroll integration scope that was promised",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Dana Okafor",
+     "type": "person"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "gmail:luis-demo",
+  "source": "gmail",
+  "title": "Payroll integration demo for our nursing teams",
+  "days_ago": 6,
+  "time": "14:40",
+  "account": "Pinecrest Health",
+  "participants": [
+   "Luis Ferreira",
+   "Marcus Lee"
+  ],
+  "meta": {
+   "to": "marcus@tidewater.example"
+  },
+  "body": "Marcus,\n\nGood call last week. We are very interested in payroll integration for our nursing staff. Could you include our payroll lead in the demo? Tuesday or Wednesday works.\n\nLuis Ferreira\nPinecrest Health",
+  "_extraction": {
+   "summary": "Luis at Pinecrest confirms strong interest in payroll integration and proposes Tuesday or Wednesday for the demo.",
+   "intent": "Arrange the payroll integration demo",
+   "importance": 3,
+   "account": "Pinecrest Health",
+   "insights": [],
+   "entities": [
+    {
+     "name": "Luis Ferreira",
+     "type": "person"
+    },
+    {
+     "name": "Pinecrest Health",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "gmail:aisha-sso",
+  "source": "gmail",
+  "title": "Renewal questions and SSO",
+  "days_ago": 15,
+  "time": "10:05",
+  "account": "Lumen Retail",
+  "participants": [
+   "Aisha Karim",
+   "Marcus Lee"
+  ],
+  "meta": {
+   "to": "marcus@tidewater.example"
+  },
+  "body": "Hi Marcus,\n\nBefore we renew in Q1 we need SAML single sign-on. Payroll integration is not a priority for us this year. Can you confirm SSO timing?\n\nAisha Karim\nLumen Retail",
+  "_extraction": {
+   "summary": "Lumen Retail needs SAML SSO before renewing in Q1 and says payroll integration is not a priority.",
+   "intent": "Get SSO timing before renewal",
+   "importance": 3,
+   "account": "Lumen Retail",
+   "insights": [
+    {
+     "kind": "risk",
+     "text": "Lumen Retail's Q1 renewal depends on SAML SSO",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Aisha Karim",
+     "type": "person"
+    },
+    {
+     "name": "Lumen Retail",
+     "type": "customer"
+    },
+    {
+     "name": "SSO",
+     "type": "topic"
+    }
+   ]
+  }
+ },
+ {
+  "id": "slack:elena-keys",
+  "source": "slack",
+  "title": "#platform · staging keys",
+  "days_ago": 1,
+  "time": "16:20",
+  "account": "Provider migration",
+  "participants": [
+   "Elena Petrova"
+  ],
+  "meta": {
+   "channel": "#platform"
+  },
+  "body": "Heads up: the staging provider keys expire Friday. Who owns rotation? If nobody does, summarisation in staging stops working.",
+  "_extraction": {
+   "summary": "Elena warns that staging provider keys expire Friday and nobody owns the rotation.",
+   "intent": "Find an owner for key rotation",
+   "importance": 3,
+   "account": "Provider migration",
+   "insights": [
+    {
+     "kind": "risk",
+     "text": "Staging provider keys expire Friday with no owner for rotation",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Elena Petrova",
+     "type": "person"
+    },
+    {
+     "name": "Provider migration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "slack:priya-latency",
+  "source": "slack",
+  "title": "#platform · summarisation latency",
+  "days_ago": 3,
+  "time": "11:02",
+  "account": "Provider migration",
+  "participants": [
+   "Priya Raman"
+  ],
+  "meta": {
+   "channel": "#platform"
+  },
+  "body": "Summarisation endpoint p95 latency on Claude is 4.1s this week, above our 3s target. I benchmarked the same prompts on OpenAI at 2.2s. Worth discussing in the platform sync.",
+  "_extraction": {
+   "summary": "Priya reports the summarisation endpoint is slower than target on Claude and benchmarks faster on OpenAI.",
+   "intent": "Raise a latency problem for the platform sync",
+   "importance": 3,
+   "account": "Provider migration",
+   "insights": [],
+   "entities": [
+    {
+     "name": "Priya Raman",
+     "type": "person"
+    },
+    {
+     "name": "summarisation endpoint",
+     "type": "topic"
+    },
+    {
+     "name": "Provider migration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "slack:marcus-pinecrest",
+  "source": "slack",
+  "title": "#accounts · Pinecrest demo",
+  "days_ago": 5,
+  "time": "09:30",
+  "account": "Pinecrest Health",
+  "participants": [
+   "Marcus Lee"
+  ],
+  "meta": {
+   "channel": "#accounts"
+  },
+  "body": "Pinecrest wants the payroll integration demo next week with their payroll lead. Sam, can you join for the technical part?",
+  "_extraction": {
+   "summary": "Marcus asks Sam to join the Pinecrest payroll integration demo next week.",
+   "intent": "Staff the Pinecrest demo",
+   "importance": 2,
+   "account": "Pinecrest Health",
+   "insights": [],
+   "entities": [
+    {
+     "name": "Sam Ortiz",
+     "type": "person"
+    },
+    {
+     "name": "Pinecrest Health",
+     "type": "customer"
+    }
+   ]
+  }
+ },
+ {
+  "id": "jira:PLAT-138",
+  "source": "jira",
+  "title": "PLAT-138 Rate-limit handling for provider calls",
+  "days_ago": 1,
+  "time": "13:15",
+  "account": "Provider migration",
+  "participants": [
+   "Sam Ortiz"
+  ],
+  "meta": {
+   "key": "PLAT-138",
+   "status": "In Review",
+   "assignee": "Sam Ortiz"
+  },
+  "body": "Add retry with backoff and a circuit breaker around provider calls. Moved to In Review by Sam Ortiz.",
+  "_extraction": {
+   "summary": "PLAT-138 (rate-limit handling for provider calls) moved to In Review.",
+   "intent": "Track ticket progress",
+   "importance": 2,
+   "account": "Provider migration",
+   "insights": [],
+   "entities": [
+    {
+     "name": "PLAT-138",
+     "type": "ticket"
+    },
+    {
+     "name": "Sam Ortiz",
+     "type": "person"
+    }
+   ]
+  }
+ },
+ {
+  "id": "jira:PLAT-136",
+  "source": "jira",
+  "title": "PLAT-136 Provider timeout tests",
+  "days_ago": 4,
+  "time": "10:45",
+  "account": "Provider migration",
+  "participants": [
+   "Sam Ortiz"
+  ],
+  "meta": {
+   "key": "PLAT-136",
+   "status": "In Progress",
+   "assignee": "Sam Ortiz"
+  },
+  "body": "Integration tests for provider timeouts and partial responses. In progress, assigned to Sam Ortiz.",
+  "_extraction": {
+   "summary": "PLAT-136 (provider timeout tests) is in progress with Sam.",
+   "intent": "Track ticket progress",
+   "importance": 2,
+   "account": "Provider migration",
+   "insights": [],
+   "entities": [
+    {
+     "name": "PLAT-136",
+     "type": "ticket"
+    },
+    {
+     "name": "Sam Ortiz",
+     "type": "person"
+    }
+   ]
+  }
+ },
+ {
+  "id": "jira:PLAT-131",
+  "source": "jira",
+  "title": "PLAT-131 Payroll export: CSV and API formats",
+  "days_ago": 12,
+  "time": "15:30",
+  "account": "Payroll integration",
+  "participants": [
+   "Priya Raman"
+  ],
+  "meta": {
+   "key": "PLAT-131",
+   "status": "To Do",
+   "assignee": "Priya Raman"
+  },
+  "body": "CSV export is done in staging. API format is not started. Needed for the Harborline pilot.",
+  "_extraction": {
+   "summary": "PLAT-131 covers payroll export; CSV is done in staging and the API format is not started.",
+   "intent": "Track ticket progress",
+   "importance": 3,
+   "account": "Payroll integration",
+   "insights": [
+    {
+     "kind": "risk",
+     "text": "Payroll export API format is not started and is needed for the Harborline pilot",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "PLAT-131",
+     "type": "ticket"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    }
+   ]
+  }
+ },
+ {
+  "id": "confluence:migration-runbook",
+  "source": "confluence",
+  "title": "API migration runbook",
+  "days_ago": 9,
+  "time": "17:00",
+  "account": "Provider migration",
+  "participants": [
+   "Priya Raman"
+  ],
+  "body": "How to move an endpoint between LLM providers. Steps: add the provider behind the abstraction, shadow traffic for 48 hours, compare quality on the golden set, switch, keep the old provider as fallback for two weeks. Open questions: who rotates provider keys, what is the rollback trigger, and who signs off on quality.",
+  "_extraction": {
+   "summary": "Runbook for moving an endpoint between LLM providers, with three open questions on key rotation, rollback trigger and quality sign-off.",
+   "intent": "Document the migration procedure",
+   "importance": 3,
+   "account": "Provider migration",
+   "insights": [
+    {
+     "kind": "risk",
+     "text": "The migration runbook has no defined rollback trigger",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "API migration runbook",
+     "type": "document"
+    },
+    {
+     "name": "Priya Raman",
+     "type": "person"
+    }
+   ]
+  }
+ },
+ {
+  "id": "confluence:harborline-account",
+  "source": "confluence",
+  "title": "Harborline Freight — account page",
+  "days_ago": 20,
+  "time": "12:00",
+  "account": "Harborline Freight",
+  "participants": [
+   "Marcus Lee"
+  ],
+  "body": "Customer since March. 2,300 employees across four regions. Decision maker: Dana Okafor, Operations Lead. Top request: payroll integration before the January payroll cycle. Pilot region: Gulf. Renewal: Q1.",
+  "_extraction": {
+   "summary": "Account page: Harborline has 2,300 employees in four regions; Dana Okafor decides; top request is payroll integration; renewal in Q1.",
+   "intent": "Record account facts",
+   "importance": 2,
+   "account": "Harborline Freight",
+   "insights": [],
+   "entities": [
+    {
+     "name": "Dana Okafor",
+     "type": "person"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    }
+   ]
+  }
+ },
+ {
+  "id": "calendar:standup",
+  "source": "calendar",
+  "title": "Stand-up",
+  "days_ago": 0,
+  "time": "10:00",
+  "account": null,
+  "participants": [
+   "Maya Chen",
+   "Sam Ortiz",
+   "Priya Raman",
+   "Elena Petrova"
+  ],
+  "meta": {
+   "duration_minutes": 15
+  },
+  "body": "Daily stand-up.",
+  "_extraction": {
+   "summary": "Daily stand-up.",
+   "intent": "Routine",
+   "importance": 1,
+   "account": null,
+   "insights": [],
+   "entities": []
+  }
+ },
+ {
+  "id": "calendar:platform-sync",
+  "source": "calendar",
+  "title": "Platform sync",
+  "days_ago": 0,
+  "time": "14:00",
+  "account": "Provider migration",
+  "participants": [
+   "Maya Chen",
+   "Priya Raman",
+   "Sam Ortiz",
+   "Elena Petrova",
+   "Marcus Lee"
+  ],
+  "meta": {
+   "duration_minutes": 45
+  },
+  "body": "Weekly platform sync. Agenda: summarisation latency, provider migration.",
+  "_extraction": {
+   "summary": "Weekly platform sync on summarisation latency and the provider migration.",
+   "intent": "Routine",
+   "importance": 1,
+   "account": "Provider migration",
+   "insights": [],
+   "entities": []
+  }
+ }
+]

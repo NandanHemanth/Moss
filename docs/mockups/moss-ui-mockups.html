@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moss UI mockups</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif}
+.app{min-height:100vh;background:var(--bg);color:var(--ink);padding:14px 16px 28px;position:relative;overflow:hidden}
+.app[data-theme=light]{--bg:#efeadc;--paper:#fbf9f2;--pane:#f6f2e6;--ink:#1b1b18;--muted:#6b675c;--line:#d6cfbd;--accent:#4a7a37;--accent-ink:#fff;--soft:#e9efe0;--warn:#a8502a;--chip:#ece6d5;--rule:rgba(70,100,150,.13);--shadow:0 1px 0 rgba(0,0,0,.05),0 6px 16px rgba(60,50,20,.07)}
+.app[data-theme=dark]{--bg:#09110e;--paper:rgba(22,37,29,.86);--pane:rgba(14,24,19,.78);--ink:#e4eedf;--muted:#90a394;--line:#27402f;--accent:#93cc6c;--accent-ink:#0a130f;--soft:rgba(147,204,108,.13);--warn:#e9bd62;--chip:#1c3024;--rule:transparent;--shadow:0 0 0 1px rgba(147,204,108,.05),0 10px 30px rgba(0,0,0,.45)}
+.app[data-theme=dark]{background:radial-gradient(900px 500px at 78% -10%,#1d3a2a 0,transparent 60%),radial-gradient(700px 420px at 8% 4%,#14301f 0,transparent 62%),#09110e}
+
+/* controls */
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:12px;position:relative;z-index:3}
+.ctl b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--paper)}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.note{font-size:12.5px;color:var(--muted);margin:0 0 12px;max-width:900px;position:relative;z-index:3}
+
+/* frame */
+.frame{position:relative;z-index:2;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);background:var(--pane);min-height:660px;display:grid}
+.frame.A{grid-template-columns:212px minmax(0,1fr) 290px}
+.frame.B{grid-template-columns:230px minmax(0,1fr) 300px;grid-template-rows:auto 1fr}
+.frame.C{grid-template-columns:76px minmax(0,1fr) 310px}
+.side,.rail{padding:16px 14px;background:var(--paper)}
+.side{border-right:1px solid var(--line)}
+.rail{border-left:1px solid var(--line)}
+.main{padding:18px 22px 22px;min-width:0}
+.app[data-theme=light] .main{background-image:linear-gradient(var(--rule) 1px,transparent 1px);background-size:100% 30px;background-position:0 12px;border-left:2px solid rgba(190,80,70,.22)}
+h1,h2,h3{margin:0;font-family:Georgia,"Iowan Old Style",serif;font-weight:600}
+h1{font-size:21px}h2{font-size:16px}h3{font-size:14px}
+.logo{display:flex;align-items:center;gap:9px;font:600 19px Georgia,serif;margin-bottom:18px}
+.logo i{width:26px;height:26px;border-radius:8px 14px 9px 13px;background:var(--accent);display:inline-block}
+.lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:16px 0 7px}
+.nav a{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:13.5px}
+.nav a.on{background:var(--soft);font-weight:600}
+.nav a.off{opacity:.45}
+.av{flex:none;width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font:700 11px Georgia,serif;color:#fff;background:var(--c)}
+.av.lg{width:38px;height:38px;font-size:14px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:auto}
+.small{font-size:12px;color:var(--muted)}
+.lock{margin-left:auto;font-size:10.5px;border:1px solid var(--line);border-radius:20px;padding:1px 7px;color:var(--muted)}
+
+.ask{display:flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--paper);border-radius:11px;padding:9px 12px;margin:12px 0 18px}
+.ask span{color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);white-space:nowrap}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.done{background:var(--soft);border-color:transparent;color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-bottom:14px;box-shadow:var(--shadow)}
+.row{display:flex;gap:10px;align-items:center}
+.row.top{align-items:flex-start}
+.grow{flex:1;min-width:0}
+.chip{display:inline-block;font-size:11.5px;background:var(--chip);border-radius:20px;padding:2px 9px;margin:2px 4px 2px 0;color:var(--ink)}
+.chip.w{color:var(--warn)}
+.act{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px dashed var(--line)}
+.act:first-of-type{margin-top:10px}
+.act .bt{display:flex;gap:6px;flex:none}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:0 8px 6px 0}
+td{padding:8px 8px 8px 0;border-top:1px solid var(--line);vertical-align:top}
+.wh{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.wh time{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.voice{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:6px}
+.tog{all:unset;cursor:pointer;font-size:12px;border:1px solid var(--line);border-radius:20px;padding:3px 10px;color:var(--ink);background:var(--pane)}
+.tog[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.grid5{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.tile{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+.tile p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+
+/* B */
+.topbar{grid-column:1/-1;display:flex;gap:14px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--paper)}
+.topbar .ask{margin:0;flex:1}
+.ticker{font-size:12.5px;color:var(--muted);max-width:330px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct{padding:8px 9px;border-radius:8px;font-size:13.5px}
+.acct.on{background:var(--soft);font-weight:600}
+.tl{position:relative;padding-left:22px;margin-top:14px}
+.tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.ev{position:relative;margin-bottom:14px}
+.ev:before{content:"";position:absolute;left:-20px;top:16px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--pane)}
+.ev .card{margin:0}
+.day{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+
+/* C */
+.strip{padding:14px 0;background:var(--paper);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:12px}
+.strip .av.sel{outline:2px solid var(--accent);outline-offset:3px}
+.strip .av.dis{opacity:.3}
+.chat{display:flex;flex-direction:column;gap:12px;max-width:720px;margin:14px auto 0}
+.msg{max-width:88%;padding:10px 13px;border-radius:13px;border:1px solid var(--line);background:var(--paper);box-shadow:var(--shadow)}
+.msg.me{align-self:flex-end;background:var(--soft);border-color:transparent}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.toast{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--paper);border-radius:10px;padding:9px 11px;margin-bottom:9px;font-size:12.5px;box-shadow:var(--shadow)}
+
+/* grove scenery */
+.scene{display:none;position:absolute;left:0;right:0;bottom:0;height:300px;z-index:1;pointer-events:none}
+.app[data-theme=dark] .scene,.app[data-theme=dark] .fly{display:block}
+.fly{display:none;position:absolute;width:4px;height:4px;border-radius:50%;background:#f1d98a;box-shadow:0 0 10px 3px rgba(241,217,138,.55);animation:fl 7s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translate(0,0);opacity:.2}50%{transform:translate(18px,-26px);opacity:1}}
+@media (prefers-reduced-motion:reduce){.fly{animation:none;opacity:.7}}
+@media (max-width:920px){.frame.A,.frame.B,.frame.C{grid-template-columns:1fr}.side,.rail,.strip{border:0;border-bottom:1px solid var(--line)}.strip{flex-direction:row;justify-content:center}.topbar{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="app" id="app" data-theme="light">
+  <div class="ctl">
+    <span><b>Layout</b><span class="seg" data-k="layout"><button data-v="A">A · Clearing</button><button data-v="B">B · Trail</button><button data-v="C">C · Canopy</button></span></span>
+    <span><b>Role</b><span class="seg" data-k="role"><button data-v="manager">Manager</button><button data-v="employee">Employee</button></span></span>
+    <span><b>Theme</b><span class="seg" data-k="theme"><button data-v="light">Notebook</button><button data-v="dark">Enchanted grove</button></span></span>
+  </div>
+  <p class="note" id="note"></p>
+  <div id="frame"></div>
+
+  <svg class="scene" viewBox="0 0 1400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <g fill="#0f2318" opacity=".9"><path d="M60 300 L110 120 L160 300Z"/><path d="M150 300 L215 70 L280 300Z"/><path d="M1120 300 L1190 60 L1260 300Z"/><path d="M1230 300 L1290 130 L1350 300Z"/><path d="M930 300 L975 160 L1020 300Z"/></g>
+    <g fill="#16301f"><path d="M0 300 L60 170 L120 300Z"/><path d="M300 300 L350 150 L400 300Z"/><path d="M1320 300 L1370 150 L1420 300Z"/><path d="M1030 300 L1085 110 L1140 300Z"/></g>
+    <path d="M0 300 C200 250 380 285 620 270 S1100 245 1400 282 L1400 300Z" fill="#1d4027"/>
+    <g fill="#3b4a41"><ellipse cx="470" cy="286" rx="46" ry="18"/><ellipse cx="528" cy="290" rx="28" ry="12"/><ellipse cx="860" cy="284" rx="38" ry="15"/></g>
+    <g fill="#5d9a48" opacity=".85"><ellipse cx="462" cy="274" rx="30" ry="7"/><ellipse cx="856" cy="273" rx="24" ry="6"/></g>
+    <g><rect x="690" y="262" width="5" height="16" fill="#d9cfb8"/><path d="M678 264 a15 11 0 0 1 30 0Z" fill="#b6543c"/><rect x="716" y="268" width="4" height="11" fill="#d9cfb8"/><path d="M708 270 a10 8 0 0 1 20 0Z" fill="#b6543c"/></g>
+    <g fill="#0a1a12"><path d="M585 268 q6-22 20-20 q-2-9 6-12 l4 9 q10 2 9 12 l-6 3 l1 10 l-5 0 l-2-8 l-14 1 l-3 7 l-5 0Z"/></g>
+  </svg>
+  <i class="fly" style="left:12%;bottom:150px"></i><i class="fly" style="left:31%;bottom:90px;animation-delay:-2s"></i><i class="fly" style="left:58%;bottom:170px;animation-delay:-4s"></i><i class="fly" style="left:77%;bottom:110px;animation-delay:-1s"></i><i class="fly" style="left:90%;bottom:200px;animation-delay:-5s"></i>
+</div>
+
+<script>
+const AG={oak:['Oak','Orchestrator','#55803a'],wren:['Wren','Gmail + Calendar','#c0693a'],brook:['Brook','Slack','#3c8aa3'],beaver:['Beaver','Jira','#8c6a3a'],owl:['Owl','Zoom meetings','#7765a8'],cairn:['Cairn','Confluence','#737d77']};
+const S={layout:'A',role:'manager',theme:'light'};
+const av=(k,x='')=>`<span class="av ${x}" style="--c:${AG[k][2]}" title="${AG[k][0]} · ${AG[k][1]}">${AG[k][0].slice(0,2)}</span>`;
+const NOTES={
+ A:'<b>Clearing</b> — a command centre. Decisions waiting for you sit in the middle, agents on the left, spoken status updates on the right.',
+ B:'<b>Trail</b> — a timeline per customer or project. Everything from every tool in date order, with suggestions appearing where they happened.',
+ C:'<b>Canopy</b> — chat first. You talk to an agent; proposals, sources and context appear beside the conversation.'};
+
+const ACTS=[['beaver','Create Jira ticket','PLAT-142 · Add OpenAI endpoint for summarisation, assign Priya'],['brook','Post in #platform','“Decision from today: summarisation moves to OpenAI. Priya owns it, target Oct 16.”'],['wren','Schedule follow-up','Endpoint migration review · Thu 10:00 · Priya, Marcus, Elena']];
+const proposal=(mgr)=>`<div class="card"><div class="row top">${av('owl','lg')}<div class="grow"><h2>Platform sync · today 2:00 pm</h2><div class="small">Owl read the transcript · 42 min · 5 people</div>
+ <div style="margin-top:8px"><span class="chip">Decision: move summarisation endpoint from Claude to OpenAI</span><span class="chip">Commitment: Priya ships by Oct 16</span><span class="chip w">Risk: no rollback plan yet</span></div></div>${mgr?'<button class="btn p" data-all>Approve all</button>':''}</div>
+ ${ACTS.map(a=>`<div class="act">${av(a[0])}<div class="grow"><b>${a[1]}</b><div class="small">${a[2]}</div></div><div class="bt">${mgr?'<button class="btn p" data-ok>Approve</button><button class="btn">Edit</button><button class="btn">Skip</button>':'<span class="chip">Waiting for manager</span>'}</div></div>`).join('')}</div>`;
+
+const WH=[['owl','Platform sync finished. Two decisions and three commitments found; three actions are waiting for you.','2 min ago'],['wren','Harborline Freight replied about payroll integration and asked for a call this week.','18 min ago'],['beaver','PLAT-138 moved to In Review by Marcus.','41 min ago'],['brook','Elena flagged a blocker in #platform: staging keys expire Friday.','1 h ago'],['cairn','“API migration runbook” was updated by Priya.','2 h ago']];
+const whispers=()=>`<div class="voice"><h3>Whispers</h3><button class="tog" data-voice aria-pressed="true">Voice on</button></div><div class="small">Short status updates, read aloud</div>${WH.map(w=>`<div class="wh"><div class="row top">${av(w[0])}<div class="grow">${w[1]}<time>${AG[w[0]][0]} · ${w[2]}</time></div></div></div>`).join('')}`;
+const myday=()=>`<h3>My day</h3><div class="small">From Wren</div><div class="wh">10:00 · Stand-up<time>15 min · Zoom</time></div><div class="wh">14:00 · Platform sync<time>45 min · you have 2 action items</time></div><div class="wh">Thu 10:00 · Endpoint migration review<time>Proposed, waiting for manager</time></div><div class="lbl">Ask Oak</div><div class="small">The orchestrator is available to managers. You can ask any single agent directly.</div>`;
+const commits=(mgr)=>`<div class="card"><h2>${mgr?'Open commitments':'My commitments'}</h2><table style="margin-top:10px"><tr><th>What</th>${mgr?'<th>Owner</th>':''}<th>Due</th><th>From</th></tr>
+ <tr><td>Ship OpenAI summarisation endpoint</td>${mgr?'<td>Priya</td>':''}<td>Oct 16</td><td>${av('owl')}</td></tr>
+ ${mgr?`<tr><td>Send payroll integration scope to Harborline</td><td>Marcus</td><td>Oct 8</td><td>${av('wren')}</td></tr>`:''}
+ <tr><td>Write rollback plan for endpoint switch</td>${mgr?'<td>Elena</td>':''}<td>Oct 10</td><td>${av('brook')}</td></tr></table></div>`;
+const askbar=(t)=>`<div class="ask"><span>${t}</span><button class="btn p">Ask</button></div>`;
+const agents=(mgr)=>Object.keys(AG).map(k=>`<a class="${k=='oak'&&!mgr?'off':''}" href="#" onclick="return false">${av(k)}<span>${AG[k][0]}<div class="small">${AG[k][1]}</div></span>${k=='oak'&&!mgr?'<span class="lock">Manager</span>':'<i class="dot"></i>'}</a>`).join('');
+
+function A(mgr){return `<div class="frame A"><aside class="side"><div class="logo"><i></i>Moss</div><nav class="nav"><a class="on" href="#" onclick="return false">${mgr?'Clearing':'My work'}</a><a href="#" onclick="return false">Ask</a><a href="#" onclick="return false">Timeline</a><a href="#" onclick="return false">Graph</a></nav><div class="lbl">Agents</div><nav class="nav">${agents(mgr)}</nav></aside>
+ <section class="main"><h1>${mgr?'Good afternoon, Maya':'Good afternoon, Sam'}</h1>${askbar(mgr?'Ask Oak… “What are the open commitments for Harborline Freight?”':'Ask an agent… “Beaver, what is assigned to me this sprint?”')}
+ ${mgr?'<div class="lbl" style="margin-top:0">Needs your decision · 1 meeting, 3 actions</div>'+proposal(true)+commits(true):`<div class="lbl" style="margin-top:0">Call an agent</div><div class="grid5">${['wren','brook','beaver','owl','cairn'].map(k=>`<div class="tile"><div class="row">${av(k)}<b>${AG[k][0]}</b></div><p>${AG[k][1]}</p></div>`).join('')}</div>`+commits(false)+'<div class="lbl">From your last meeting</div>'+proposal(false)}</section>
+ <aside class="rail">${mgr?whispers():myday()}</aside></div>`}
+
+const EV=[['Today',[['owl','Platform sync','2 decisions, 3 commitments. Summarisation moves from Claude to OpenAI.',1],['brook','#platform','Elena: “staging keys expire Friday, who owns rotation?”',0]]],['Yesterday',[['wren','Email from Dana at Harborline','“We need payroll integration before the January cycle.”',0],['beaver','PLAT-138 → In Review','Marcus moved “Rate-limit handling for provider calls”.',0]]],['Sep 24',[['cairn','API migration runbook','Page created by Priya, 3 open questions.',0]]]];
+function B(mgr){return `<div class="frame B"><div class="topbar"><div class="logo" style="margin:0"><i></i>Moss</div>${askbar(mgr?'Ask Oak about this account…':'Ask an agent about this account…')}${mgr?`<span class="ticker">Owl: Platform sync finished, three actions waiting.</span><button class="tog" data-voice aria-pressed="true">Voice on</button>`:''}</div>
+ <aside class="side"><div class="lbl" style="margin-top:0">Accounts</div><div class="acct on">Harborline Freight</div><div class="acct">Pinecrest Health</div><div class="acct">Lumen Retail</div><div class="lbl">Projects</div><div class="acct">Provider migration</div><div class="acct">Payroll integration</div><div class="lbl">Agents</div><nav class="nav">${agents(mgr)}</nav></aside>
+ <section class="main"><h1>Harborline Freight</h1><div class="small">${mgr?'Everything, every tool':'Items you are part of'} · last 30 days</div><div class="tl">${EV.map(d=>`<p class="day">${d[0]}</p>`+d[1].map(e=>`<div class="ev">${e[3]?proposal(mgr):`<div class="card"><div class="row top">${av(e[0])}<div class="grow"><b>${e[1]}</b><div class="small">${e[2]}</div></div></div></div>`}</div>`).join('')).join('')}</div></section>
+ <aside class="rail"><h3>What we know</h3><p class="small" style="margin:6px 0 10px">Logistics customer since March. Main ask is payroll integration before January. Dana is the decision maker.</p><span class="chip">payroll integration</span><span class="chip">renewal in Q1</span><span class="chip w">2 overdue replies</span><div class="lbl">People</div><div class="small">Dana Okafor · Ops lead<br>Marcus Lee · account owner</div><div class="lbl">Open commitments</div><div class="wh">Send integration scope<time>Marcus · due Oct 8</time></div><div class="wh">Book discovery call<time>Unassigned · asked yesterday</time></div></aside></div>`}
+
+function C(mgr){const who=mgr?'oak':'beaver';return `<div class="frame C"><div class="strip"><div class="logo" style="margin:0 0 6px"><i></i></div>${Object.keys(AG).map(k=>av(k,'lg '+(k==who?'sel':'')+(k=='oak'&&!mgr?' dis':''))).join('')}</div>
+ <section class="main"><div class="row">${av(who,'lg')}<div><h1>${AG[who][0]}</h1><div class="small">${AG[who][1]}${mgr?' · can call every agent':' · employees talk to one agent at a time'}</div></div></div>
+ <div class="chat">${mgr?`<div class="msg me">What did we discuss with Harborline last month?</div><div class="msg"><p>Three things came up across two calls and nine emails:</p><p>1. Payroll integration before the January cycle. 2. A discovery call Dana asked for yesterday. 3. Renewal terms for Q1.</p><span class="chip">Owl · Sep 12 call</span><span class="chip">Wren · 9 emails</span><span class="chip">Cairn · account page</span></div><div class="msg me">And what came out of today’s platform sync?</div>${proposal(true)}`:`<div class="msg me">What is assigned to me this sprint?</div><div class="msg"><p>Two issues: PLAT-140 (rollback plan, due Oct 10) and PLAT-136 (provider timeout tests, in progress).</p><span class="chip">Jira · sprint 14</span></div><div class="msg me">Draft a ticket for the OpenAI endpoint work.</div><div class="msg"><p>Drafted PLAT-142. It needs manager approval before I create it.</p><span class="chip">Waiting for manager</span></div>`}</div>${askbar(mgr?'Message Oak…':'Message Beaver…')}</section>
+ <aside class="rail">${mgr?`<div class="voice"><h3>Whispers</h3><button class="tog" data-voice aria-pressed="true">Voice on</button></div>${WH.slice(0,3).map(w=>`<div class="toast"><b>${AG[w[0]][0]}</b> · ${w[1]}</div>`).join('')}<div class="lbl">Context</div>`:'<h3>Context</h3>'}<div class="wh">Provider migration<time>Project · 4 people · 6 open issues</time></div><div class="wh">Priya Raman<time>Owns endpoint switch · due Oct 16</time></div><div class="wh">API migration runbook<time>Confluence · updated 2 h ago</time></div></aside></div>`}
+
+function render(){
+  const app=document.getElementById('app');app.dataset.theme=S.theme;
+  document.querySelectorAll('.seg').forEach(g=>g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',S[g.dataset.k]===b.dataset.v)));
+  document.getElementById('note').innerHTML=NOTES[S.layout]+(S.role==='employee'?' <b>Employee:</b> can call each agent directly; no orchestrator, no approvals, no voice feed.':' <b>Manager:</b> orchestrator, approvals and spoken notifications.');
+  document.getElementById('frame').innerHTML=({A,B,C})[S.layout](S.role==='manager');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const g=b.closest('.seg');
+  if(g){S[g.dataset.k]=b.dataset.v;render();return}
+  const ok=x=>{x.textContent='Done';x.className='btn done';x.disabled=true;[...x.parentNode.children].forEach(s=>{if(s!==x)s.remove()})};
+  if(b.hasAttribute('data-ok'))ok(b);
+  if(b.hasAttribute('data-all')){b.closest('.card').querySelectorAll('[data-ok]').forEach(ok);b.textContent='All approved';b.className='btn done'}
+  if(b.hasAttribute('data-voice')){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);b.textContent=on?'Voice on':'Muted'}
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+[
+ {
+  "id": "meeting:platform-sync",
+  "source": "meeting",
+  "title": "Platform sync",
+  "days_ago": 0,
+  "time": "14:00",
+  "account": "Provider migration",
+  "participants": [
+   "Maya Chen",
+   "Priya Raman",
+   "Sam Ortiz",
+   "Elena Petrova",
+   "Marcus Lee"
+  ],
+  "meta": {
+   "duration_minutes": 42
+  },
+  "body": "Maya: First item, summarisation latency. Priya?\nPriya: p95 on Claude is 4.1 seconds, our target is 3. Same prompts on OpenAI came in at 2.2 seconds with equal quality on the golden set.\nSam: The provider abstraction is ready, so adding an OpenAI endpoint is about a week of work.\nMaya: Any reason not to switch?\nElena: We have no rollback plan. If OpenAI degrades we need a trigger and a way back. Also the staging keys expire Friday.\nMaya: Fair. Decision: we set up a new API endpoint for summarisation on OpenAI instead of the existing Claude one, and keep Claude as the fallback for two weeks.\nPriya: I will ship the OpenAI endpoint by October 16.\nElena: I will write the rollback plan by October 10 and rotate the staging keys before Friday.\nSam: I will extend the provider timeout tests to cover OpenAI.\nMarcus: Does this affect Harborline? Their summaries feed the payroll pilot.\nPriya: No contract change, same response shape.\nMaya: Good. Let us review progress next week.",
+  "_extraction": {
+   "summary": "The team decided to move the summarisation endpoint from Claude to OpenAI, keeping Claude as a two-week fallback. A rollback plan does not exist yet.",
+   "intent": "Fix summarisation latency by switching provider",
+   "importance": 5,
+   "account": "Provider migration",
+   "insights": [
+    {
+     "kind": "decision",
+     "text": "Set up a new summarisation API endpoint on OpenAI instead of the existing Claude one",
+     "owner": null,
+     "due": null
+    },
+    {
+     "kind": "decision",
+     "text": "Keep Claude as the fallback provider for two weeks",
+     "owner": null,
+     "due": null
+    },
+    {
+     "kind": "commitment",
+     "text": "Ship the OpenAI summarisation endpoint",
+     "owner": "Priya Raman",
+     "due": "{d+13}"
+    },
+    {
+     "kind": "commitment",
+     "text": "Write the rollback plan for the endpoint switch",
+     "owner": "Elena Petrova",
+     "due": "{d+7}"
+    },
+    {
+     "kind": "commitment",
+     "text": "Extend the provider timeout tests to cover OpenAI",
+     "owner": "Sam Ortiz",
+     "due": null
+    },
+    {
+     "kind": "risk",
+     "text": "There is no rollback plan for the provider switch yet",
+     "owner": null,
+     "due": null
+    },
+    {
+     "kind": "risk",
+     "text": "Staging provider keys expire Friday",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Priya Raman",
+     "type": "person"
+    },
+    {
+     "name": "Elena Petrova",
+     "type": "person"
+    },
+    {
+     "name": "Sam Ortiz",
+     "type": "person"
+    },
+    {
+     "name": "summarisation endpoint",
+     "type": "topic"
+    },
+    {
+     "name": "Provider migration",
+     "type": "project"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    }
+   ]
+  },
+  "_proposal": {
+   "notification": "Platform sync finished. The team decided to move summarisation from Claude to OpenAI; three actions are waiting for your approval.",
+   "actions": [
+    {
+     "kind": "jira.create_issue",
+     "title": "Create Jira ticket",
+     "detail": "Add OpenAI endpoint for summarisation · assign Priya Raman",
+     "params": {
+      "summary": "Add OpenAI endpoint for summarisation",
+      "description": "Decision from the Platform sync: serve summarisation from OpenAI behind the provider abstraction and keep Claude as fallback for two weeks. Owner: Priya Raman. Target: {d+13}.",
+      "assignee": "Priya Raman"
+     }
+    },
+    {
+     "kind": "slack.post_message",
+     "title": "Post in #platform",
+     "detail": "Tell the team what was decided and who owns what",
+     "params": {
+      "channel": "platform",
+      "text": "Decision from today's Platform sync: summarisation moves from Claude to OpenAI, with Claude kept as fallback for two weeks.\n• Priya ships the OpenAI endpoint (target {d+13})\n• Elena writes the rollback plan (by {d+7}) and rotates staging keys before Friday\n• Sam extends the provider timeout tests"
+     }
+    },
+    {
+     "kind": "calendar.create_event",
+     "title": "Schedule follow-up",
+     "detail": "Endpoint migration review · {wd+3} 10:00 · Priya, Elena, Sam, Maya",
+     "params": {
+      "title": "Endpoint migration review",
+      "start": "{wd+3}T10:00",
+      "duration_minutes": 30,
+      "attendees": [
+       "Priya Raman",
+       "Elena Petrova",
+       "Sam Ortiz",
+       "Maya Chen"
+      ],
+      "description": "Review progress on the OpenAI summarisation endpoint and the rollback plan."
+     }
+    }
+   ]
+  }
+ },
+ {
+  "id": "meeting:harborline-discovery",
+  "source": "meeting",
+  "title": "Harborline payroll discovery call",
+  "days_ago": 0,
+  "time": "16:00",
+  "account": "Harborline Freight",
+  "participants": [
+   "Marcus Lee",
+   "Sam Ortiz",
+   "Maya Chen",
+   "Dana Okafor"
+  ],
+  "meta": {
+   "duration_minutes": 31
+  },
+  "body": "Dana: Thanks for making time. I still have not seen the scope.\nMarcus: That is on me. You will have it tomorrow.\nDana: For the Gulf pilot we have 400 employees. We need approved hours in our payroll system by December 1 so we can test before January.\nSam: CSV export can do that today. Your IT team asked for the API format, which is not built.\nDana: CSV is fine for the pilot. API can come later.\nMaya: Then we agree: the Gulf pilot runs on CSV export, starting December 1, for 400 employees.\nDana: One warning. Our IT change freeze starts December 15, nothing goes live after that.\nMarcus: I will send the scope and pricing tomorrow.\nSam: I will send your IT team the CSV field mapping by Friday.\nDana: Good. Let us meet again next week to confirm.",
+  "_extraction": {
+   "summary": "Harborline agreed to run the Gulf payroll pilot on CSV export for 400 employees starting December 1. Their IT change freeze starts December 15.",
+   "intent": "Agree the scope of the payroll pilot",
+   "importance": 5,
+   "account": "Harborline Freight",
+   "insights": [
+    {
+     "kind": "decision",
+     "text": "The Gulf payroll pilot runs on CSV export for 400 employees, starting December 1",
+     "owner": null,
+     "due": null
+    },
+    {
+     "kind": "commitment",
+     "text": "Send the pilot scope and pricing to Dana",
+     "owner": "Marcus Lee",
+     "due": "{d+1}"
+    },
+    {
+     "kind": "commitment",
+     "text": "Send Harborline's IT team the CSV field mapping",
+     "owner": "Sam Ortiz",
+     "due": "{d+5}"
+    },
+    {
+     "kind": "risk",
+     "text": "Harborline's IT change freeze starts December 15",
+     "owner": null,
+     "due": null
+    }
+   ],
+   "entities": [
+    {
+     "name": "Dana Okafor",
+     "type": "person"
+    },
+    {
+     "name": "Harborline Freight",
+     "type": "customer"
+    },
+    {
+     "name": "Payroll integration",
+     "type": "project"
+    },
+    {
+     "name": "Gulf pilot",
+     "type": "topic"
+    }
+   ]
+  },
+  "_proposal": {
+   "notification": "Harborline discovery call finished. They agreed to a CSV-based Gulf pilot from December 1; four actions are waiting for you.",
+   "actions": [
+    {
+     "kind": "gmail.create_draft",
+     "title": "Draft recap email",
+     "detail": "To Dana Okafor: recap of the Gulf pilot agreement",
+     "params": {
+      "to": "dana.okafor@harborline.example",
+      "subject": "Recap: Gulf payroll pilot",
+      "body": "Hi Dana,\n\nThanks for today. To confirm what we agreed:\n- The Gulf pilot runs on CSV export for 400 employees, starting December 1.\n- Marcus sends scope and pricing tomorrow.\n- Sam sends your IT team the CSV field mapping by Friday.\n- We go live before your IT change freeze on December 15.\n\nBest,\nMaya"
+     }
+    },
+    {
+     "kind": "jira.create_issue",
+     "title": "Create Jira ticket",
+     "detail": "Harborline Gulf pilot: CSV field mapping · assign Sam Ortiz",
+     "params": {
+      "summary": "Harborline Gulf pilot: CSV field mapping",
+      "description": "Send Harborline IT the CSV field mapping for the payroll pilot (400 employees, Gulf region, start December 1).",
+      "assignee": "Sam Ortiz"
+     }
+    },
+    {
+     "kind": "confluence.create_page",
+     "title": "Create Confluence page",
+     "detail": "Harborline Gulf pilot plan",
+     "params": {
+      "title": "Harborline Gulf pilot plan",
+      "body": "Scope: CSV payroll export for 400 Gulf-region employees. Start: December 1. Constraint: Harborline IT change freeze from December 15. Owners: Marcus Lee (scope and pricing), Sam Ortiz (CSV field mapping). API format is out of scope for the pilot."
+     }
+    },
+    {
+     "kind": "calendar.create_event",
+     "title": "Schedule follow-up",
+     "detail": "Harborline pilot check-in · {wd+5} 11:00 · Dana, Marcus, Sam",
+     "params": {
+      "title": "Harborline pilot check-in",
+      "start": "{wd+5}T11:00",
+      "duration_minutes": 30,
+      "attendees": [
+       "Dana Okafor",
+       "Marcus Lee",
+       "Sam Ortiz"
+      ],
+      "description": "Confirm scope, pricing and CSV mapping for the Gulf pilot."
+     }
+    }
+   ]
+  }
+ }
+]

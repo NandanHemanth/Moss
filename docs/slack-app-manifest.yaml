@@ -1,0 +1,34 @@
+# Slack app manifest for Moss (internal app, one workspace).
+# Create the app at https://api.slack.com/apps > Create New App > From a manifest, paste this file.
+#
+# Bot scopes: exactly what backend/moss/connectors/live_slack.py calls.
+#   channels:read     conversations.list     channel names <-> ids, which channels the bot is in
+#   channels:history  conversations.history  read messages in public channels the bot is in
+#   channels:join     conversations.join     join a public channel before posting
+#   chat:write        chat.postMessage       post approved messages
+#   users:read        users.info             user ids -> display names
+# auth.test and chat.getPermalink need no scope.
+# No Socket Mode, no event subscriptions, no user token: Moss polls when POST /api/sync is called.
+_metadata:
+  major_version: 2
+  minor_version: 1
+display_information:
+  name: Moss
+  description: Reads team channels and posts approved updates for the Moss demo.
+  background_color: "#2f5d3a"
+features:
+  bot_user:
+    display_name: Moss
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - channels:read
+      - channels:history
+      - channels:join
+      - chat:write
+      - users:read
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
