@@ -111,3 +111,28 @@ async def test_adk_agent_loop_with_fake_model(client):
         assert any(s["agent_id"] == "fox" for s in agents._c()["sources"])
     finally:
         agents._ctx.reset(token)
+
+
+def test_sync_works_through_backlog(client):
+    from moss import pipeline
+    for i in range(7):
+        pipeline.store_event({"id": f"jira:TEST-{i}", "source": "jira", "title": f"TEST-{i} backlog item {i}",
+                              "body": f"body {i}", "occurred_at": f"2026-10-01T10:0{i}", "participants": ["Sam Ortiz"]})
+    first = client.post("/api/sync", headers=MAYA).json()
+    assert len(first["processed"]) == 5 and first["deferred"] == 2 and first["errors"] == {} and first["hints"] == {}
+    second = client.post("/api/sync", headers=MAYA).json()
+    assert len(second["processed"]) == 2 and second["deferred"] == 0
+    assert client.get("/api/status", headers=MAYA).json()["backlog"] == 0
+
+
+def test_html_error_pages_become_short_messages():
+    import httpx
+
+    from moss.api import _hint
+    from moss.connectors.live_common import error_text
+    page = "<html><head><title>Unauthorized (401)</title><script>var contextPath = '';window.WRM=window.WRM||{};</script></head><body>x</body></html>"
+    assert error_text(httpx.Response(401, text=page)) == "Unauthorized (401)"
+    noisy = "<html><body><script>var a = 1;</script>(null) var contextPath = ''; window.WRM=window.WRM||{};</body></html>"
+    assert "window" not in error_text(httpx.Response(401, text=noisy))
+    assert "Reinstall" in _hint("slack", "Slack conversations.list: missing_scope (needs scope channels:read)")
+    assert "admin.atlassian.com" in _hint("confluence", "Confluence 401 on GET /wiki/api/v2/spaces: Unauthorized")

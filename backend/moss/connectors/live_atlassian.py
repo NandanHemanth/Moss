@@ -99,7 +99,12 @@ class _Atlassian:
         except httpx.HTTPError as e:
             raise RuntimeError(f"{self.product} request failed: {type(e).__name__}: {e}") from e
         if r.status_code >= 400:
-            hint = " (check ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN)" if r.status_code in (401, 403) else ""
+            hint = ""
+            if r.status_code in (401, 403):
+                hint = " (check ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN)"
+                if self.product == "Confluence":
+                    hint = (" (if Jira works the token is fine: this account probably has no Confluence on the site; "
+                            f"open {self.site}/wiki signed in as ATLASSIAN_EMAIL)")
             raise RuntimeError(f"{self.product} {r.status_code} on {method} {path}: {error_text(r)}{hint}")
         return r.json() if r.content else {}
 

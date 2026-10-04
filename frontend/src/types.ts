@@ -163,11 +163,13 @@ export interface MeetingEndedResult {
   [key: string]: unknown;
 }
 
+/** POST /api/sync. `errors[tool]` is a short cleaned message, `hints[tool]` says how to fix it. */
 export interface SyncResult {
   new: number;
   processed: unknown[];
   deferred: number;
   errors: Record<string, string>;
+  hints: Record<string, string>;
 }
 
 export interface GraphNode {

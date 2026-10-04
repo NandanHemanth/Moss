@@ -4,6 +4,7 @@ import App from "./App";
 import { applyTheme, themeStore } from "./session";
 import "./styles/theme.css";
 import "./styles/app.css";
+import "./styles/grove.css";
 
 applyTheme(themeStore.get());
 

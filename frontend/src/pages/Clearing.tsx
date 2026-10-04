@@ -9,6 +9,7 @@ import { CommitmentsTable } from "../components/CommitmentsTable";
 import { ProposalCard } from "../components/ProposalCard";
 import { Empty, ErrorNote, Loading } from "../components/States";
 import { Whispers } from "../components/Whispers";
+import { TOOL_AGENT } from "../lib/agents";
 import { MOSS_QUERY_KEY, useAllowed, useIdentity, useMossList, useMossQuery, useRole } from "../hooks/useMoss";
 import { firstName, formatDay, formatTime, greeting, isToday, parseDate, plural } from "../lib/format";
 import { errorMessage } from "../providers/http";
@@ -58,6 +59,40 @@ function AskBar() {
   );
 }
 
+type SyncProblem = { tool: string; message: string; hint: string | null };
+type DemoNote = { tone: "ok" | "fail"; text: string } | { tone: "sync"; text: string; problems: SyncProblem[] };
+
+/** Result of a sync: a neutral summary line, then one row per tool that had a problem. */
+function SyncReport({ text, problems }: { text: string; problems: SyncProblem[] }) {
+  const { byId } = useAgentDirectory();
+  return (
+    <div className="demo-note sync-report" role="status" data-testid="sync-report">
+      <div className="sync-summary">{text}</div>
+      {problems.length ? (
+        <ul className="sync-problems" aria-label="Sync problems">
+          {problems.map((p) => {
+            const agentId = TOOL_AGENT[p.tool];
+            const agentName = agentId ? byId.get(agentId)?.name : undefined;
+            return (
+              <li key={p.tool} data-tool={p.tool}>
+                {agentId && agentName ? <AgentAvatar id={agentId} /> : <span className="dot warn" aria-hidden="true" />}
+                <div className="grow">
+                  <div>
+                    <b>{agentName ?? p.tool}</b>
+                    {agentName ? <span className="small"> · {p.tool}</span> : null}
+                    <span className="sync-msg"> {p.message}</span>
+                  </div>
+                  {p.hint ? <div className="small sync-hint">{p.hint}</div> : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function DemoControls() {
   const canDemo = useAllowed("demo", "trigger");
   const canSync = useAllowed("sync", "run");
@@ -67,7 +102,7 @@ function DemoControls() {
   const { mutateAsync: postMeeting } = useCustomMutation<MeetingEndedResult, HttpError, Record<string, never>>();
   const { mutateAsync: postSync } = useCustomMutation<SyncResult, HttpError, Record<string, never>>();
   const [busy, setBusy] = useState<"meeting" | "sync" | null>(null);
-  const [note, setNote] = useState<{ tone: "ok" | "fail"; text: string } | null>(null);
+  const [note, setNote] = useState<DemoNote | null>(null);
 
   if (!canDemo && !canSync) return null;
 
@@ -102,13 +137,20 @@ function DemoControls() {
     try {
       const res = await postSync({ url: api("/api/sync"), method: "post", values: {} });
       const r = res.data;
-      const errs = Object.entries(r.errors ?? {});
+      const understood = Array.isArray(r.processed) ? r.processed.length : 0;
+      const deferred = r.deferred ?? 0;
+      const hints = r.hints ?? {};
+      const problems = Object.entries(r.errors ?? {}).map(([tool, message]) => ({
+        tool,
+        message: String(message ?? "").trim() || "Something went wrong.",
+        hint: hints[tool] ? String(hints[tool]) : null,
+      }));
       setNote({
-        tone: errs.length ? "fail" : "ok",
+        tone: "sync",
         text:
-          `Sync finished: ${plural(r.new, "new item")}` +
-          (r.deferred ? `, ${r.deferred} deferred` : "") +
-          (errs.length ? `. Problems: ${errs.map(([tool, msg]) => `${tool}: ${msg}`).join("; ")}` : "."),
+          `Sync finished: ${r.new ?? 0} new, ${understood} understood` +
+          (deferred > 0 ? `, ${deferred} still waiting — click Sync again to continue` : "."),
+        problems,
       });
     } catch (e) {
       setNote({ tone: "fail", text: errorMessage(e, "Sync failed.") });
@@ -146,7 +188,9 @@ function DemoControls() {
           {busy === "sync" ? "Syncing…" : "Sync"}
         </button>
       </div>
-      {note ? (
+      {note?.tone === "sync" ? (
+        <SyncReport text={note.text} problems={note.problems} />
+      ) : note ? (
         <div className={`small demo-note ${note.tone}`} role="status">
           {note.text}
         </div>

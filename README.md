@@ -60,7 +60,8 @@ still runs if a quota is exhausted.
 ## Stack
 
 - Backend: Python, FastAPI, Google ADK (agents), AG-UI endpoint for Stag (`/agui/stag`), Graphiti, SQLite
-- Frontend: React + Vite + [refine](https://github.com/refinedev/refine) (headless), plain CSS, two themes
+- Frontend: React + Vite + [refine](https://github.com/refinedev/refine) (headless), plain CSS, two themes;
+  the Enchanted grove theme is a live three.js scene in which the six agent animals roam
 - Everything is open source; every third-party service is used on its free tier
 
 ## Quick start (Windows PowerShell, mock mode, no keys)
@@ -84,13 +85,14 @@ npm run dev          # http://localhost:5173
 Then in the UI: click **A meeting just ended**, approve the proposed actions, switch user to Sam to see
 the employee view, and toggle the theme.
 
-To connect real services, follow [`docs/03-setup.md`](docs/03-setup.md).
+To connect real services, follow [`docs/03-setup.md`](docs/03-setup.md). After editing `.env`, run
+`python -m moss.doctor` in `backend`: it tests every connection and prints the fix for anything that fails.
 
 ## Tests
 
 ```powershell
 cd backend
-python -m pytest -q      # 49 tests, all offline
+python -m pytest -q      # 51 tests, all offline
 ```
 
 ## Docs

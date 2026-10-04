@@ -159,6 +159,48 @@ textarea.field {
 .demo-note.fail {
   color: var(--warn);
 }
+/* sync result: neutral summary, then one row per tool with a problem */
+.sync-report {
+  font-size: 12.5px;
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sync-problems {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--line);
+}
+.sync-problems li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px 0 0;
+  min-width: 0;
+}
+.sync-problems li + li {
+  margin-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.sync-problems .av {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+.sync-problems .dot {
+  margin: 6px 7px 0 8px;
+}
+.sync-problems .grow {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.sync-msg {
+  color: var(--warn);
+}
+.sync-hint {
+  margin-top: 2px;
+}
 .proposal .summary {
   margin: 6px 0 0;
   font-size: 13px;

@@ -70,7 +70,8 @@ def status(_: dict = Depends(current_user)):
     count = lambda t: db.one(f"SELECT count(*) AS n FROM {t}")["n"]  # noqa: E731
     return {"llm": llm.snapshot(), "graph": graph.snapshot(), "cache": cache.snapshot(), "connectors": connectors.modes(),
             "voice": "elevenlabs" if settings.elevenlabs_key else "browser",
-            "counts": {t: count(t) for t in ("events", "facts", "commitments", "proposals", "notifications")}}
+            "counts": {t: count(t) for t in ("events", "facts", "commitments", "proposals", "notifications")},
+            "backlog": db.one("SELECT count(*) AS n FROM events WHERE processed=0")["n"]}
 
 
 # ------------------------------------------------------------------ proposals + actions
@@ -241,9 +242,30 @@ async def demo_meeting(body: DemoTrigger, user: dict = Depends(manager)):
     return await pipeline.process_event(ev["id"])
 
 
+def _hint(tool: str, message: str) -> str:
+    """Turn an upstream error into the next thing the user should do."""
+    m = message.lower()
+    if "missing_scope" in m:
+        return ("Slack app is missing a permission. api.slack.com/apps → your app → OAuth & Permissions → add the scope "
+                "named above under Bot Token Scopes → Reinstall to Workspace → restart the backend.")
+    if "not_in_channel" in m or "channel_not_found" in m:
+        return "Invite the bot to the channel (type /invite @your-app-name in it), or check SLACK_DEFAULT_CHANNEL."
+    if tool == "confluence" and (" 401 " in m or " 403 " in m):
+        return ("If Jira is live the token is fine. Open your-site/wiki signed in as ATLASSIAN_EMAIL; if Confluence is "
+                "missing, add it (free) at admin.atlassian.com → Products. Then run: python -m moss.doctor")
+    if tool == "confluence" and "not found" in m:
+        return "Set CONFLUENCE_SPACE to a real space key. `python -m moss.doctor` lists the keys it can see."
+    if any(w in m for w in (" 401 ", "invalid_auth", "expired", "revoked", "not_authed")):
+        return "Credentials were rejected. Re-check this tool's values in backend/.env and restart the backend."
+    return "Run `python -m moss.doctor` in the backend folder for details."
+
+
+SYNC_BATCH = 5  # events understood per click, to stay inside free LLM quotas
+
+
 @app.post("/api/sync")
 async def sync(user: dict = Depends(manager)):
-    """Pull new items from every live connector and run up to 5 of them through the pipeline."""
+    """Pull new items from every live connector, then run the oldest-waiting items through the pipeline."""
     new, errors = [], {}
     for tool in ("gmail", "calendar", "slack", "jira", "confluence"):
         try:
@@ -251,10 +273,18 @@ async def sync(user: dict = Depends(manager)):
                 if pipeline.store_event(ev, dedupe=True):
                     new.append(ev["id"])
         except Exception as e:
-            errors[tool] = str(e)[:200]
-    results = [await pipeline.process_event(eid) for eid in new[:5]]
-    db.audit(user["id"], "sync", f"{len(new)} new")
-    return {"new": len(new), "processed": results, "deferred": len(new) - len(results), "errors": errors}
+            errors[tool] = " ".join(str(e).split())[:220]
+    backlog = [r["id"] for r in db.q("SELECT id FROM events WHERE processed=0 ORDER BY occurred_at DESC")]
+    results = []
+    for eid in backlog[:SYNC_BATCH]:
+        try:
+            results.append(await pipeline.process_event(eid))
+        except Exception as e:
+            errors["pipeline"] = " ".join(str(e).split())[:220]
+            break
+    db.audit(user["id"], "sync", f"{len(new)} new, {len(results)} processed")
+    return {"new": len(new), "processed": results, "deferred": max(len(backlog) - len(results), 0),
+            "errors": errors, "hints": {tool: _hint(tool, msg) for tool, msg in errors.items()}}
 
 
 # ------------------------------------------------------------------ AG-UI (streaming protocol) for Stag

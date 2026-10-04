@@ -2,7 +2,7 @@
 
 Web UI for Moss, the multi-agent knowledge platform demo. Vite + React + TypeScript on
 [refine](https://refine.dev) (headless `@refinedev/core` v5 with `@refinedev/react-router` and react-router v7),
-plain CSS, and `d3-force` for the graph page.
+plain CSS, `d3-force` for the graph page, and `three` for the 3D backdrop of the dark theme.
 
 Layout A ("Clearing") from `docs/mockups/moss-ui-mockups.html`, for both roles (manager / employee) and both
 themes (Notebook = light, Enchanted grove = dark).
@@ -61,21 +61,24 @@ src/
     agents.ts                  THE agent avatar map (glyph + colour per agent id) and mode-tag helpers
     format.ts                  dates, relative time, greeting, small text helpers
   components/
-    Shell.tsx                  layout: top-right controls (user, theme, voice), sidebar, status strip, live bridge
+    Shell.tsx                  layout: top-right controls (user, theme, voice, "View the grove"), sidebar, status strip, live bridge
     AgentAvatar.tsx            round agent badge + agents context (names always come from GET /api/agents)
     ProposalCard.tsx           proposal: event, insight chips, action rows with Approve / Edit / Skip / Approve all
     CommitmentsTable.tsx       open commitments with "Done" (and undo)
     Whispers.tsx               notification feed (right rail)
-    Scenery.tsx                forest SVG + fireflies for the dark theme
+    GroveBackdrop.tsx          dark theme backdrop: lazy-loads the 3D grove, falls back to Scenery
+    Scenery.tsx                flat forest SVG + fireflies; only the fallback when WebGL is unavailable
     States.tsx                 loading / empty / error blocks
   pages/
     Clearing.tsx               "/"  manager Clearing, employee "My work"
     Ask.tsx                    "/ask"  chat with one agent
     Timeline.tsx               "/timeline"  unified timeline, account + source filters
     Graph.tsx                  "/graph"  force-directed knowledge graph
+  grove/                       the 3D "Enchanted grove" scene (its own lazy chunk, see below)
   styles/
     theme.css                  design tokens for both themes + components ported from the mockup
     app.css                    forms, states, status strip, ask, timeline, graph, small-screen tweaks
+    grove.css                  dark theme only: canvas layer, glass panels, open band, showcase mode
 ```
 
 ## How the pieces talk to the API
@@ -109,6 +112,66 @@ interaction. When on, each new `notification` event is read aloud: `GET /api/not
 audio on `200`, or speak the text with `window.speechSynthesis` on `204`. Utterances are queued (never overlap) and
 muting stops the current one immediately. If voice was left on in an earlier visit, the toggle says
 "Voice on — click anywhere to start" until the first click or key press on the page.
+
+## Enchanted grove (dark theme)
+
+The dark theme sits on a live 3D scene: a moonlit clearing with fog-layered trees, light shafts, glowing
+mushrooms, a pond, fireflies, and the six agents as animals — the white **stag** walks the clearing and stops
+to look at you, the **fox** trots across the front and sometimes sits, the **owl** glides in and perches on the
+snag, the **raven** crosses overhead, the **tortoise** creeps round its stones and a **firefly** swarm drifts
+about. Everything is generated in code with [`three`](https://threejs.org) (MIT, `^0.186.1`); nothing is
+downloaded at run time. The Notebook theme never loads any of it.
+
+```
+src/components/GroveBackdrop.tsx   mounts only when the theme is dark; dynamic import("../grove"); fallback logic
+src/grove/index.ts                 createGrove(): renderer, camera, bloom, render loop, quality governor, dispose; TUNING
+src/grove/layout.ts                where things are: camera, framing, moon, pond, snag, every animal's path
+src/grove/environment.ts           sky, trees, ground, stones, ferns, grass, mushrooms, pond, shafts, particles
+src/grove/creatures.ts             the animals: shapes, gaits, and their small state machines
+src/grove/util.ts                  seeded random, noise, terrain height, the "loft" shape builder, glow shader patch
+src/styles/grove.css               glass panels, the open band under the UI, "View the grove"
+```
+
+**How it is laid out.** The canvas is `position: fixed`, full viewport, `pointer-events: none`, behind the app.
+Panels are glass (`--glass-pane`, `--glass-paper`, `--glass-blur` in `grove.css`). On screens wider than 1100px
+and taller than 620px the frame becomes a fixed sheet whose columns scroll on their own, so a band of open
+scene (`--band`) stays visible at the bottom, where the animals walk. On smaller screens the page scrolls as
+before over the fixed scene. **View the grove** (top bar, dark theme only) fades the panels to near-invisible
+and brightens the scene; click it again or press Escape to come back.
+
+**Tuning.**
+
+| What | Where |
+| --- | --- |
+| Pixel-ratio caps, bloom, exposure, parallax and sway, governor thresholds, the reduced-motion still time | `TUNING` in `grove/index.ts` |
+| Particle and plant counts (fireflies 240, spores 300, swarm 46, grass tufts 3400, leaf cards ~4200, 84 trees) | `buildEnvironment`, `buildGrass`, `buildTrees` (`cardsPer`), `scatterTrees` in `grove/environment.ts` |
+| What the lower quality levels drop | `setQuality` in `grove/environment.ts`, `setLevel` in `grove/index.ts` |
+| Camera, horizon height, paths, where animals pause or sit | `grove/layout.ts`, and the `stops` / `sitMarks` / `Track(…, start)` values in `grove/creatures.ts` |
+| Glass opacity, blur, band height, gutters | the tokens at the top of `styles/grove.css` |
+
+Text contrast on the glass depends on `--glass-pane` and on `TUNING.exposure`; if you make the glass clearer or
+the scene brighter, re-check the muted text over the moon.
+
+**Quality levels.** 0 = bloom, device pixel ratio up to 1.5; 1 = no bloom, ratio up to 1.25; 2 = no bloom,
+ratio 1, half the fireflies, leaf cards and light shafts, fewer spores and grass, and the panels stop blurring
+(`data-grove-quality="2"` on `<html>`). The scene starts at a level guessed from the GPU's name (software
+renderers at 2, older Intel graphics at 1, everything else at 0) and a governor steps down one level whenever the
+average frame takes longer than 24 ms for two 2.5-second windows in a row. It never steps back up. Rough budget
+at level 0: about 215k triangles, about 100 draw calls plus the bloom passes, about 850 particles; no shadow maps.
+
+**Fallback and robustness.**
+
+- No WebGL 2, context creation fails, the chunk fails to load, or the context is lost later: the flat SVG
+  `Scenery` is shown instead (never both), without console errors.
+- `prefers-reduced-motion`: one still frame, no camera sway or parallax, animals stationary; it is redrawn only
+  on resize or when the showcase is toggled.
+- The loop pauses while the tab is hidden. Leaving the dark theme disposes every geometry, material and
+  texture and releases the WebGL context.
+
+**Debug switches** (query string, harmless): `?grove=high|medium|low` pins the quality, `?grove=govern` starts at
+full quality with only the governor, `?grove=off` forces the SVG fallback, `?groveT=20` starts the scene 20
+seconds in, `?groveFocus=stag|fox|owl|raven|tortoise|fireflies` points the camera at one animal.
+`window.__mossGrove.info()` reports quality, draw calls, triangles and where each animal is.
 
 ## Resetting demo data
 

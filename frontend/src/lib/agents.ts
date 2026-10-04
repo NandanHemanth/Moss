@@ -18,6 +18,16 @@ export const AGENT_LOOKS: Record<string, AgentLook> = {
   tortoise: { glyph: "🐢", color: "#d8c48f" },
 };
 
+/** Which agent owns a connector (tool id as used by /api/sync and /api/status). */
+export const TOOL_AGENT: Record<string, string> = {
+  gmail: "raven",
+  calendar: "raven",
+  slack: "firefly",
+  jira: "fox",
+  confluence: "tortoise",
+  meetings: "owl",
+};
+
 const FALLBACK_COLORS = ["#737d77", "#3c8aa3", "#8c6a3a", "#a05a7c"];
 
 /** Look for an agent id; unknown ids get two-letter initials on a neutral colour. */

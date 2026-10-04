@@ -1,5 +1,5 @@
-// App shell for Layout A ("Clearing"): top-right controls, left sidebar, page outlet, grove scenery.
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+// App shell for Layout A ("Clearing"): top-right controls, left sidebar, page outlet, grove backdrop.
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useLogin, useSubscription } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,7 +13,7 @@ import { errorMessage } from "../providers/http";
 import { applyTheme, themeStore, useTheme, useUserId } from "../session";
 import type { Agent, Status, User, Whisper } from "../types";
 import { AgentAvatar, AgentsProvider } from "./AgentAvatar";
-import { Scenery } from "./Scenery";
+import { GroveBackdrop } from "./GroveBackdrop";
 import { Loading } from "./States";
 
 export const LiveContext = createContext<MossLiveProvider | null>(null);
@@ -238,6 +238,21 @@ export function Shell() {
   const agentsQuery = useAgents();
   const canVoice = useAllowed("voice", "use");
 
+  // "View the grove": fade the panels so the scene behind them can be admired (dark theme only).
+  const [showcase, setShowcase] = useState(false);
+  const showing = theme === "dark" && showcase;
+  useEffect(() => {
+    if (theme !== "dark") setShowcase(false);
+  }, [theme]);
+  useEffect(() => {
+    if (!showing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowcase(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showing]);
+
   useEffect(() => applyTheme(theme), [theme]);
   useEffect(() => {
     document.title = role === "employee" ? "Moss · My work" : "Moss";
@@ -247,7 +262,7 @@ export function Shell() {
   return (
     <AgentsProvider value={{ agents: agentsQuery.agents, byId: agentsQuery.byId, isLoading: agentsQuery.isLoading }}>
       <LiveBridge />
-      <div className="app">
+      <div className="app" data-showcase={showing ? "on" : undefined}>
         <header className="ctl">
           <span className="small who-am-i">
             {me ? (
@@ -260,10 +275,23 @@ export function Shell() {
           <span className="spacer" />
           <UserSwitcher />
           <ThemeToggle />
+          {theme === "dark" ? (
+            <button
+              type="button"
+              className="tog grove-toggle"
+              aria-pressed={showing}
+              title={showing ? "Bring the panels back (Esc)" : "Fade the panels and look at the grove"}
+              onClick={() => setShowcase((on) => !on)}
+              data-testid="grove-toggle"
+            >
+              <span aria-hidden="true">{showing ? "↩ " : "🌿 "}</span>
+              {showing ? "Back to Moss" : "View the grove"}
+            </button>
+          ) : null}
           {canVoice ? <VoiceToggle /> : null}
         </header>
 
-        <div className="frame A">
+        <div className="frame A" inert={showing}>
           <Sidebar agents={agentsQuery.agents} loading={agentsQuery.isLoading} />
           {identity.isError ? (
             <section className="main">
@@ -286,7 +314,7 @@ export function Shell() {
             <Outlet />
           )}
         </div>
-        <Scenery />
+        <GroveBackdrop showcase={showing} />
       </div>
     </AgentsProvider>
   );

@@ -373,3 +373,16 @@ seeding the live accounts or accept the duplicates. To show a fresh live event, 
 | `/api/status` shows `llm.mode: offline` | No `GEMINI_API_KEY` and no fallback | Step 1 or step 7. |
 | Gemini errors with `429` | Free-tier rate limit | Wait, check <https://aistudio.google.com/rate-limit>, set `GRAPH_BACKEND=local` to cut background calls. |
 | An approved action shows "failed" | The upstream service rejected it | The action's result holds the service's own error message; match it against this table. |
+
+
+## Checking your connections
+
+After any change to `backend\.env`, run this in the backend folder (venv active):
+
+```powershell
+python -m moss.doctor
+```
+
+It tests Gemini (both model names), the fallback LLM, Neo4j, Jira, Confluence (and lists the space keys it can see), Slack (token, scopes, channels), Gmail, Calendar and ElevenLabs. Every `FAIL` line is followed by the fix. Then restart uvicorn.
+
+The **Sync** button understands 5 new items per click to stay inside free LLM quotas; click it again while it reports items still waiting.

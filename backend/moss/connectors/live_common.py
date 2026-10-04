@@ -58,7 +58,12 @@ def error_text(response) -> str:
     try:
         data = response.json()
     except ValueError:
-        return strip_html(response.text)[:200] or response.reason_phrase
+        body = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", response.text or "")
+        title = re.search(r"(?is)<title[^>]*>(.*?)</title>", body)
+        text = " ".join(strip_html(title.group(1) if title else body).split())
+        if re.search(r"[{};]\s*(var|window|function)\b|window\.", text):  # leftover inline JavaScript, not a message
+            text = ""
+        return text[:120] or response.reason_phrase or "no details in the response"
     if isinstance(data, dict):
         parts = [str(m) for m in data.get("errorMessages") or []]
         errors = data.get("errors")
