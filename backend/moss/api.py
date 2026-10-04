@@ -130,15 +130,18 @@ def list_agents(user: dict = Depends(current_user)):
     modes = connectors.modes()
     tool_mode = {"raven": f"{modes['gmail']}/{modes['calendar']}", "firefly": modes["slack"], "fox": modes["jira"],
                  "owl": modes["meeting"], "tortoise": modes["confluence"], "stag": llm.mode()}
-    return [{"id": aid, **a, "mode": tool_mode[aid], "allowed": user["role"] == "manager" or not a["manager_only"]}
-            for aid, a in AGENTS.items()]
+    why = {"raven": connectors.reason("gmail") or connectors.reason("calendar"), "firefly": connectors.reason("slack"),
+           "fox": connectors.reason("jira"), "tortoise": connectors.reason("confluence"),
+           "stag": None if llm.mode() != "offline" else "No GEMINI_API_KEY in backend/.env, so Stag answers from memory only."}
+    return [{"id": aid, **a, "mode": tool_mode[aid], "reason": why.get(aid),
+             "allowed": user["role"] == "manager" or not a["manager_only"]} for aid, a in AGENTS.items()]
 
 
 @app.get("/api/status")
 def status(_: dict = Depends(current_user)):
     count = lambda t: db.one(f"SELECT count(*) AS n FROM {t}")["n"]  # noqa: E731
     return {"llm": llm.snapshot(), "graph": graph.snapshot(), "cache": cache.snapshot(), "connectors": connectors.modes(),
-            "voice": "elevenlabs" if settings.elevenlabs_key else "browser",
+            "voice": "elevenlabs" if settings.elevenlabs_key else "browser", "voice_detail": voice.state,
             "counts": {t: count(t) for t in ("events", "facts", "commitments", "proposals", "notifications")},
             "backlog": db.one("SELECT count(*) AS n FROM events WHERE processed=0")["n"], "watch": POLL}
 
@@ -252,6 +255,32 @@ async def notification_audio(nid: str, _: dict = Depends(manager)):
     if not audio:
         return Response(status_code=204)  # client falls back to the browser's speech synthesis
     return Response(content=audio, media_type="audio/mpeg")
+
+
+class Speak(BaseModel):
+    text: str
+
+
+@app.post("/api/speak")
+async def speak(body: Speak, user: dict = Depends(current_user)):
+    """Read a short text aloud on request (for example the stakeholder summary). 204 = use the browser's voice."""
+    text = " ".join(body.text.split())[:900]
+    if not text:
+        raise HTTPException(422, "Nothing to read.")
+    audio = await cache.get_or_set("tts", cache.key_of("speak", text), 3600, lambda: voice.synthesize(text))
+    db.audit(user["id"], "speak", text[:80])
+    return Response(content=audio, media_type="audio/mpeg") if audio else Response(status_code=204)
+
+
+@app.get("/api/sfx/{name}")
+async def sfx(name: str, _: dict = Depends(current_user)):
+    """A grove creature's sound (stag, fox, owl, raven, tortoise, firefly). 204 = no sound available; synthesise one."""
+    if name not in voice.SFX:
+        raise HTTPException(404, "No such sound")
+    audio = await voice.sound_effect(name)
+    if not audio:
+        return Response(status_code=204)
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/api/stream")

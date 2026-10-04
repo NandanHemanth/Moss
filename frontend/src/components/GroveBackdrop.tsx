@@ -3,6 +3,7 @@
 // theme is on. If WebGL is missing, the context cannot be created, the chunk fails to load or the context
 // is lost later, the flat SVG scenery is shown instead.
 import { useEffect, useRef, useState } from "react";
+import { SFX_VOLUME, sfx, sfxNameFor } from "../lib/sfx";
 import { motionStore, useTheme } from "../session";
 import { Scenery } from "./Scenery";
 import type { GroveHandle, GroveInfo, GroveQuality } from "../grove";
@@ -10,7 +11,13 @@ import type { GroveHandle, GroveInfo, GroveQuality } from "../grove";
 declare global {
   interface Window {
     /** Debug handle for the running grove scene (undefined in the light theme or in fallback mode). */
-    __mossGrove?: { info: () => GroveInfo; scene?: unknown };
+    __mossGrove?: {
+      info: () => GroveInfo;
+      scene?: unknown;
+      /** Viewport pixel position of each creature, so a test can click one without guessing. */
+      creatureScreenPositions: () => Record<string, { x: number; y: number; visible: boolean }>;
+      pick: (clientX: number, clientY: number) => string | null;
+    };
   }
 }
 
@@ -87,7 +94,8 @@ function GroveScene({ showcase }: { showcase: boolean }) {
           onContextLost: () => setFallback(true),
         });
         handleRef.current = handle;
-        window.__mossGrove = import.meta.env.DEV ? { info: handle.info, scene: handle.scene } : { info: handle.info };
+        const debugHandle = { info: handle.info, creatureScreenPositions: handle.creatureScreenPositions, pick: handle.pick };
+        window.__mossGrove = import.meta.env.DEV ? { ...debugHandle, scene: handle.scene } : debugHandle;
         unsubscribe = motionStore.subscribe(onMotion);
         onMotion();
       })
@@ -108,6 +116,40 @@ function GroveScene({ showcase }: { showcase: boolean }) {
       setReady(false);
     };
   }, [fallback]);
+
+  // Showcase only: the layer takes pointer events (see grove.css), a click on a creature plays its sound
+  // and makes it glow, and the cursor turns into a pointer over one.
+  useEffect(() => {
+    const el = holder.current;
+    if (!el || fallback || !showcase) return;
+    let frame = 0;
+    let lastMove: PointerEvent | null = null;
+    const onMove = (e: PointerEvent) => {
+      lastMove = e;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (lastMove) el.style.cursor = handleRef.current?.pick(lastMove.clientX, lastMove.clientY) ? "pointer" : "";
+      });
+    };
+    const onClick = (e: MouseEvent) => {
+      const handle = handleRef.current;
+      const hit = handle?.pick(e.clientX, e.clientY) ?? null;
+      const name = sfxNameFor(hit);
+      if (!handle || !name) return;
+      el.dataset.lastPick = name;
+      handle.react(name);
+      void sfx.play(name, SFX_VOLUME.click);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("click", onClick);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("click", onClick);
+      if (frame) cancelAnimationFrame(frame);
+      el.style.cursor = "";
+    };
+  }, [showcase, fallback]);
 
   if (fallback) return <Scenery />;
   return <div ref={holder} className={`grove-layer${ready ? " ready" : ""}`} aria-hidden="true" data-testid="grove-layer" />;

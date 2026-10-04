@@ -27,6 +27,25 @@ def short(e: Exception) -> str:
     return " ".join(str(e).split())[:200]
 
 
+async def check_python() -> None:
+    import sys
+    from importlib.util import find_spec
+    need = {"cachetools": "cachetools", "google.genai": "google-genai", "google.adk": "google-adk", "googleapiclient": "google-api-python-client",
+            "google_auth_oauthlib": "google-auth-oauthlib", "neo4j": "neo4j", "graphiti_core": "graphiti-core[google-genai]"}
+    missing = []
+    for module, package in need.items():
+        try:
+            if not find_spec(module):
+                missing.append(package)
+        except (ImportError, ValueError):
+            missing.append(package)
+    if missing:
+        show("FAIL", "Python", f"{sys.executable} is missing: {', '.join(missing)}",
+             f'Run exactly: "{sys.executable}" -m pip install -r requirements.txt   (same Python that starts uvicorn)')
+    else:
+        show("OK", "Python", f"{sys.version.split()[0]} at {sys.executable}; all packages present")
+
+
 async def check_llm() -> None:
     if not settings.gemini_key:
         show("SKIP", "Gemini", "GEMINI_API_KEY not set; Moss runs offline (stored extractions, rule-based proposals)")
@@ -155,8 +174,13 @@ async def check_slack() -> None:
 async def check_google() -> None:
     from .connectors.live_google import LiveCalendar, LiveGmail
     if not LiveGmail.is_configured():
-        show("SKIP", "Gmail", "no token file; run: python -m moss.connectors.google_auth")
-        show("SKIP", "Calendar", "same token as Gmail")
+        from pathlib import Path
+        have = Path(settings.google_credentials).is_file()
+        show("FAIL", "Gmail", f"not connected: {settings.google_token} does not exist, so incoming email cannot trigger anything",
+             "Run: python -m moss.connectors.google_auth" if have else
+             f"Copy credentials.json and token.json from the machine where Gmail works into {Path(settings.google_token).parent}, "
+             "or copy only credentials.json and run: python -m moss.connectors.google_auth")
+        show("FAIL", "Calendar", "same Google sign-in as Gmail")
         return
     for name, call in (("Gmail", lambda: LiveGmail().search("", 1)), ("Calendar", lambda: LiveCalendar().list_events(7))):
         try:
@@ -172,15 +196,17 @@ async def check_voice() -> None:
         return
     from . import voice
     audio = await voice.synthesize("Moss voice check.")
-    if audio:
-        show("OK", "ElevenLabs", f"returned {len(audio):,} bytes of audio")
+    if audio and voice.state["note"]:
+        show("FAIL", "ElevenLabs", "speech works, but only with the default voice", voice.state["note"])
+    elif audio:
+        show("OK", "ElevenLabs", f"returned {len(audio):,} bytes of audio (voice: {voice.state['voice']})")
     else:
         show("FAIL", "ElevenLabs", "no audio returned", "See the warning printed above; try setting ELEVENLABS_VOICE_ID to a voice from your account.")
 
 
 async def main() -> None:
     print("Moss connection check\n")
-    for check in (check_llm, check_graph, check_atlassian, check_slack, check_google, check_voice):
+    for check in (check_python, check_llm, check_graph, check_atlassian, check_slack, check_google, check_voice):
         try:
             await check()
         except Exception as e:  # a broken check must not hide the others

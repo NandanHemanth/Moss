@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { Link } from "react-router";
 import { AgentAvatar } from "../components/AgentAvatar";
-import { errorMessage } from "../providers/http";
+import { errorMessage, request } from "../providers/http";
+import type { Proposal, ProposedAction } from "../types";
 import { SAMPLE_INPUT, TEXT_FIELDS, runWorkflow, stepLook, type Graph, type NodeType, type RunResult, type StepData, type StepNode, type TextField } from "./model";
 
 /** dataTransfer type used when a palette item is dragged onto the board. */
@@ -135,6 +136,131 @@ function paramText(v: unknown): string {
   }
 }
 
+// ---------- approve the queued actions without leaving the canvas (only managers reach this page) ----------
+type Approval =
+  | { state: "loading" }
+  | { state: "error"; error: unknown }
+  | { state: "ready" | "approving" | "done"; proposal: Proposal; error?: unknown };
+
+function ActionOutcome({ action }: { action: ProposedAction }) {
+  const r = action.result;
+  const url = typeof r?.url === "string" && /^https?:\/\//i.test(r.url) ? r.url : null;
+  const tone = action.status === "executed" ? "ok" : action.status === "failed" ? "fail" : "";
+  return (
+    <li className="cv-approve-row" data-status={action.status}>
+      <span className={`chip ${tone}`}>{action.status}</span>
+      <div className="cv-approve-text">
+        <b>{action.title}</b>
+        {action.status === "executed" && (r?.text || url) ? (
+          <span className="small">
+            {r?.text}
+            {url ? (
+              <>
+                {r?.text ? " · " : ""}
+                <a href={url} target="_blank" rel="noreferrer noopener">
+                  Open
+                </a>
+              </>
+            ) : null}
+          </span>
+        ) : null}
+        {action.status === "failed" ? <span className="small warn-text">{r?.error || "It could not be run."}</span> : null}
+      </div>
+    </li>
+  );
+}
+
+function ApprovePanel({ proposalId }: { proposalId: string }) {
+  const [approval, setApproval] = useState<Approval>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setApproval({ state: "loading" });
+    request<Proposal[]>("/api/proposals", { query: { status: "all" } })
+      .then((list) => {
+        if (cancelled) return;
+        const proposal = (Array.isArray(list) ? list : []).find((p) => p.id === proposalId);
+        if (!proposal) throw { message: "The queued actions were not found. Review them in the Clearing.", statusCode: 404 };
+        setApproval({ state: proposal.actions.some((a) => a.status === "pending") ? "ready" : "done", proposal });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setApproval({ state: "error", error });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [proposalId, attempt]);
+
+  const approve = async () => {
+    if (approval.state !== "ready") return;
+    const before = approval.proposal;
+    setApproval({ state: "approving", proposal: before });
+    try {
+      const after = await request<Proposal>(`/api/proposals/${encodeURIComponent(proposalId)}/approve-all`, { method: "POST" });
+      setApproval({ state: "done", proposal: after && Array.isArray(after.actions) ? after : before });
+    } catch (error) {
+      setApproval({ state: "ready", proposal: before, error });
+    }
+  };
+
+  const clearing = <Link to="/">review in the Clearing</Link>;
+  if (approval.state === "loading") {
+    return (
+      <div className="cv-approve" data-testid="approve-panel" data-state="loading">
+        <div className="state" role="status">
+          <span className="spin" aria-hidden="true" />
+          Sent to approvals. Loading the queued actions…
+        </div>
+      </div>
+    );
+  }
+  if (approval.state === "error") {
+    return (
+      <div className="cv-approve" data-testid="approve-panel" data-state="error">
+        <div className="state error" role="alert">
+          <div className="grow">{errorMessage(approval.error, "The queued actions could not be loaded.")}</div>
+          <button type="button" className="btn" onClick={() => setAttempt((n) => n + 1)}>
+            Retry
+          </button>
+        </div>
+        <span className="small">Sent to approvals. You can also {clearing}.</span>
+      </div>
+    );
+  }
+  const actions = [...approval.proposal.actions].sort((a, b) => a.position - b.position);
+  const done = approval.state === "done";
+  const ran = actions.filter((a) => a.status === "executed").length;
+  const failed = actions.filter((a) => a.status === "failed").length;
+  return (
+    <div className="cv-approve" data-testid="approve-panel" data-state={approval.state}>
+      <div className="cv-approve-head">
+        <b>
+          {done
+            ? `${ran} of ${actions.length} ran${failed ? ` · ${failed} failed` : ""}`
+            : `${actions.length} ${actions.length === 1 ? "action is" : "actions are"} waiting for approval. Nothing has been sent yet.`}
+        </b>
+        {!done ? (
+          <button type="button" className="btn p" disabled={approval.state === "approving"} onClick={() => void approve()} data-testid="approve-run">
+            {approval.state === "approving" ? "Running…" : "Approve and run"}
+          </button>
+        ) : null}
+        <span className="small">{done ? <Link to="/">Open the Clearing</Link> : <>or {clearing}</>}</span>
+      </div>
+      {approval.error ? (
+        <div className="state error" role="alert">
+          {errorMessage(approval.error, "The actions could not be approved.")}
+        </div>
+      ) : null}
+      <ul className="cv-approve-list" data-testid="approve-actions">
+        {actions.map((a) => (
+          <ActionOutcome key={a.id} action={a} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function RunPanel({
   workflowId,
   name,
@@ -249,6 +375,15 @@ export function RunPanel({
           </div>
         ) : null}
         {!busy && !result && !error ? <div className="small cv-run-hint">A dry run shows what each step would do. Nothing is sent until a manager approves it.</div> : null}
+        {result && !queued ? (
+          <div className="cv-dry-note" data-testid="dry-note">
+            <b>Dry run — nothing was sent.</b>
+            <button type="button" className="btn p" disabled={!!busy || !hasNodes} onClick={() => void run(true)} data-testid="dry-send">
+              Send to approvals
+            </button>
+          </div>
+        ) : null}
+        {result?.proposal_id ? <ApprovePanel key={result.proposal_id} proposalId={result.proposal_id} /> : null}
         {result ? (
           <>
             {steps.length ? (
@@ -296,11 +431,7 @@ export function RunPanel({
             {done ? (
               <div className="cv-run-summary" data-testid="run-summary">
                 {result.summary ? <b>{result.summary}</b> : null}
-                {result.proposal_id ? (
-                  <span className="cv-queued">
-                    Sent to the approval queue. <Link to="/">Open the Clearing</Link>
-                  </span>
-                ) : queued ? (
+                {result.proposal_id ? null : queued ? (
                   <span className="small">Nothing was queued: this run proposed no actions.</span>
                 ) : null}
                 <span className="small">

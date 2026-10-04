@@ -1347,3 +1347,11 @@ Graph: `nodes[{id,type,label,x,y,trigger,description,input,output}]`, `edges[{id
 ```
 ## Access code (hosted demo)
 `GET /api/health` → `{"ok":true,"locked":bool}` (never gated). When `locked`, every other `/api/*` call needs header `X-Moss-Code: <code>` (the SSE stream takes `&code=`); without it the API answers 401 `{"detail":"access code required"}`.
+
+---
+# Additions (v0.3): why a tool is on mock, speak on request, grove sound effects
+
+- `GET /api/agents` items now carry `reason`: a plain sentence saying why the agent's tool is on mock (and the fix), or `null` when live.
+- `GET /api/status` now carries `voice_detail`: `{"voice": "default" | "<voice id>" | null, "note": string | null}`; show `note` when present.
+- `POST /api/speak` body `{"text": str}` → `audio/mpeg` (ElevenLabs), or **204** when no ElevenLabs audio is available (then use the browser's speech synthesis). Text is capped at 900 characters. Any role.
+- `GET /api/sfx/{name}` with name in `stag | fox | owl | raven | tortoise | firefly` → `audio/mpeg` (about 2.5 s, generated once with ElevenLabs and cached on disk), **204** when no sound is available (synthesise a soft tone instead), 404 for unknown names. Any role. Sends `Cache-Control: private, max-age=86400`.

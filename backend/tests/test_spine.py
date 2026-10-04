@@ -19,6 +19,8 @@ def test_seed_loaded(client):
     assert s["llm"]["mode"] == "offline" and s["graph"]["backend"] == "local"
     assert s["counts"]["events"] == 15 and s["counts"]["facts"] > 30
     assert set(s["connectors"].values()) == {"mock", "seeded"}
+    raven = next(a for a in client.get("/api/agents", headers=MAYA).json() if a["id"] == "raven")
+    assert raven["mode"] == "mock/mock" and raven["reason"]
 
 
 def test_auth(client):
@@ -265,3 +267,36 @@ def test_tokens_are_counted_per_person(client):
     assert client.get("/api/dashboard", headers=SAM).json()["tokens"]["total"] == 1200
     team = client.get("/api/dashboard", headers=MAYA).json()["tokens"]
     assert team["total"] >= 1200 and any(p["name"] == "Sam Ortiz" for p in team["by_person"])
+
+
+def test_speak_and_sfx_fall_back_cleanly_without_a_key(client):
+    assert client.post("/api/speak", headers=MAYA, json={"text": "The team shipped the endpoint."}).status_code == 204
+    assert client.post("/api/speak", headers=MAYA, json={"text": "  "}).status_code == 422
+    assert client.get("/api/sfx/owl", headers=SAM).status_code == 204
+    assert client.get("/api/sfx/dragon", headers=SAM).status_code == 404
+
+
+async def test_voice_falls_back_to_default_voice_and_caches_sfx(monkeypatch, tmp_path):
+    import httpx
+
+    from moss import voice
+    from moss.config import settings
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path.endswith("/my-missing-voice"):
+            return httpx.Response(404, json={"detail": {"status": "voice_not_found"}})
+        return httpx.Response(200, content=b"ID3-audio")
+
+    monkeypatch.setattr(voice, "_http", httpx.AsyncClient(base_url=voice.API, transport=httpx.MockTransport(handler)))
+    monkeypatch.setattr(settings, "elevenlabs_key", "k")
+    monkeypatch.setattr(settings, "elevenlabs_voice", "my-missing-voice")
+    monkeypatch.setattr(settings, "db_path", tmp_path / "moss.db")
+    assert await voice.synthesize("hello") == b"ID3-audio"
+    assert calls == ["/v1/text-to-speech/my-missing-voice", f"/v1/text-to-speech/{voice.DEFAULT_VOICE_ID}"]
+    assert "not available" in voice.state["note"] and voice.state["voice"] == "default"
+    assert await voice.sound_effect("owl") == b"ID3-audio" and (tmp_path / "sfx" / "owl.mp3").is_file()
+    before = len(calls)
+    assert await voice.sound_effect("owl") == b"ID3-audio" and len(calls) == before   # second time comes from disk
+    assert await voice.sound_effect("dragon") is None

@@ -1,8 +1,9 @@
 // The row of five tiles under the Ask bar. Numbers come from GET /api/dashboard (instant); the suggested
 // tasks and the stakeholder summary come from GET /api/dashboard/brief, which can take seconds and is
 // loaded on its own so it never holds the page back. Each tile opens a small detail popover.
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMossQuery, useRole } from "../hooks/useMoss";
+import { listen, useListening } from "../hooks/voice";
 import { formatCompact, formatDue, formatMoney, plural } from "../lib/format";
 import { errorMessage } from "../providers/http";
 import type { DashBrief, DashCloud, DashRisks, DashTokens, Dashboard, EmployeeDashboard, ManagerDashboard, TileSource } from "../types";
@@ -21,6 +22,7 @@ function Tile({
   children,
   detail,
   detailWidth = 360,
+  aside,
 }: {
   id: string;
   label: string;
@@ -30,12 +32,13 @@ function Tile({
   children: ReactNode;
   detail: ReactNode;
   detailWidth?: number;
+  /** A control that sits on the tile's corner. The tile itself is a button, so it is rendered beside it, not inside. */
+  aside?: ReactNode;
 }) {
   const ref = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
   const sample = source === "sample";
-  return (
-    <>
+  const tile = (
       <button
         ref={ref}
         type="button"
@@ -56,6 +59,17 @@ function Tile({
         </span>
         {children}
       </button>
+  );
+  return (
+    <>
+      {aside ? (
+        <div className={`dash-cell ${wide ? "wide" : ""}`}>
+          {tile}
+          {aside}
+        </div>
+      ) : (
+        tile
+      )}
       <Popover anchor={ref} open={open} onClose={() => setOpen(false)} label={`${label} details`} width={detailWidth} className="dash-detail">
         <div className="pop-head">
           <h3>{label}</h3>
@@ -303,6 +317,48 @@ function CloudDetail({ cloud }: { cloud: DashCloud }) {
   );
 }
 
+/** "Listen": reads the stakeholder summary aloud, only when clicked; "Stop" while it plays. */
+function ListenButton({ text, loading, onTile = false }: { text: string; loading: boolean; onTile?: boolean }) {
+  const playing = useListening();
+  const disabled = !playing && (loading || !text);
+  const title = disabled ? (loading ? "The summary is still loading" : "Nothing to read yet") : playing ? "Stop reading" : "Read the summary aloud";
+  return (
+    <button
+      type="button"
+      className={`listen-btn${onTile ? " on-tile" : ""}`}
+      aria-disabled={disabled || undefined}
+      title={title}
+      onClick={() => {
+        if (disabled) return;
+        if (playing) listen.stop();
+        else void listen.start(text);
+      }}
+      data-testid={onTile ? "listen-summary" : "listen-summary-detail"}
+      data-playing={playing ? "yes" : undefined}
+    >
+      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {playing ? (
+          <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+        ) : (
+          <>
+            <path d="M11 5 6 9H3v6h3l5 4z" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+          </>
+        )}
+      </svg>
+      {playing ? "Stop" : "Listen"}
+    </button>
+  );
+}
+
+/** The summary sentences as one text to read aloud (each one ends with a full stop so the voice pauses). */
+const spokenSummary = (summary: string[]) =>
+  summary
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => (/[.!?…]$/.test(s) ? s : `${s}.`))
+    .join(" ");
+
 function SummaryDetail({ brief }: { brief: BriefState }) {
   const [copied, setCopied] = useState<"yes" | "no" | null>(null);
   const summary = brief.data?.summary ?? [];
@@ -328,16 +384,17 @@ function SummaryDetail({ brief }: { brief: BriefState }) {
       ) : (
         <p className="pop-empty">Nothing to report yet.</p>
       )}
-      {summary.length ? (
-        <div className="pop-actions">
-          <span className="small" role="status">
-            {copied === "yes" ? "Copied" : copied === "no" ? "Copy is blocked by this browser" : ""}
-          </span>
+      <div className="pop-actions">
+        <span className="small" role="status">
+          {copied === "yes" ? "Copied" : copied === "no" ? "Copy is blocked by this browser" : ""}
+        </span>
+        <ListenButton text={spokenSummary(summary)} loading={false} />
+        {summary.length ? (
           <button type="button" className="btn" onClick={copy} data-testid="copy-summary">
             Copy
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <div className="pop-key">Suggested next</div>
       <TaskList brief={brief} />
     </>
@@ -353,6 +410,8 @@ function ManagerTiles({ d, brief }: { d: ManagerDashboard; brief: BriefState }) 
   const over = cloud.forecast > cloud.budget;
   const team = d.team;
   const summary = brief.data?.summary ?? [];
+  // leaving the page stops the reading
+  useEffect(() => () => listen.stop(), []);
   return (
     <>
       <Tile
@@ -437,7 +496,14 @@ function ManagerTiles({ d, brief }: { d: ManagerDashboard; brief: BriefState }) 
         <Support warn={team.overdue > 0}>{team.overdue} overdue</Support>
       </Tile>
 
-      <Tile id="summary" label="Stakeholder summary" wide detail={<SummaryDetail brief={brief} />} detailWidth={420}>
+      <Tile
+        id="summary"
+        label="Stakeholder summary"
+        wide
+        detail={<SummaryDetail brief={brief} />}
+        detailWidth={420}
+        aside={<ListenButton text={spokenSummary(summary)} loading={brief.loading} onTile />}
+      >
         {brief.loading ? (
           <Skeleton />
         ) : summary.length ? (

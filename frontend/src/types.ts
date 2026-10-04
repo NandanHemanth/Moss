@@ -19,6 +19,8 @@ export interface Agent {
   description: string;
   /** live | mock | seeded | offline, or "a/b" when the agent wraps two tools */
   mode: string;
+  /** Why the agent's tool is on mock (and the fix); null when live. */
+  reason?: string | null;
   allowed: boolean;
 }
 
@@ -37,6 +39,8 @@ export interface Status {
   cache: { hits: number; misses: number; namespaces: Record<string, number> };
   connectors: Record<string, string>;
   voice: string;
+  /** `voice`: "default", a custom voice id, or null (browser voice). `note`: a plain sentence to show when present. */
+  voice_detail?: { voice: string | null; note: string | null } | null;
   counts: Record<string, number>;
   /** Items fetched from live tools that are still waiting to be understood. */
   backlog?: number;

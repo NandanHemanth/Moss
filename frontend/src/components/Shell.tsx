@@ -10,10 +10,12 @@ import { compactMode } from "../lib/agents";
 import { firstName, formatCount, plural } from "../lib/format";
 import { MOSS_CHANNEL, type MossLiveProvider, type StreamState } from "../providers/liveProvider";
 import { errorMessage } from "../providers/http";
-import { applyMotion, applyTheme, motionStore, themeStore, useMotion, useTheme, useUserId } from "../session";
+import { AMBIENT_SECONDS, SFX_NAMES, SFX_VOLUME, sfx } from "../lib/sfx";
+import { applyMotion, applyTheme, motionStore, musicPrefStore, sfxPrefStore, themeStore, useMotion, useMusicPref, useSfxPref, useTheme, useUserId } from "../session";
 import type { Agent, Status, User, Whisper } from "../types";
 import { AgentAvatar, AgentsProvider } from "./AgentAvatar";
 import { GroveBackdrop } from "./GroveBackdrop";
+import { GroveMusic } from "./GroveMusic";
 import { Popover } from "./Popover";
 import { Loading } from "./States";
 
@@ -200,7 +202,12 @@ function AgentRow({ agent }: { agent: Agent }) {
     );
   }
   return (
-    <Link to={`/ask?agent=${encodeURIComponent(agent.id)}`} title={`Ask ${agent.name} · ${agent.tool} · ${dot.text}`} data-agent={agent.id}>
+    <Link
+      to={`/ask?agent=${encodeURIComponent(agent.id)}`}
+      title={`Ask ${agent.name} · ${agent.tool} · ${dot.text}${agent.reason ? `\n${agent.reason}` : ""}`}
+      data-agent={agent.id}
+      data-reason={agent.reason || undefined}
+    >
       <AgentAvatar id={agent.id} />
       <span className="who-name">{agent.name}</span>
       <i className={`dot ${dot.tone}`} role="img" aria-label={dot.text} data-mode={compactMode(agent.mode)} />
@@ -209,6 +216,26 @@ function AgentRow({ agent }: { agent: Agent }) {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The voice in use: ElevenLabs with its default or a custom voice, otherwise the browser's own. */
+function voiceLabel(status: Status): string {
+  const id = status.voice_detail?.voice;
+  if (/eleven/i.test(status.voice) || id) return `ElevenLabs · ${!id || id === "default" ? "default voice" : "custom voice"}`;
+  return /browser/i.test(status.voice) ? "Browser voice" : cap(status.voice);
+}
+
+/** Debug: ?groveAmbient=3 plays the ambient creature sound every 3 seconds instead of every 18–40. */
+function ambientDelayMs(): number {
+  try {
+    const raw = new URLSearchParams(window.location.search).get("groveAmbient");
+    const fixed = Number(raw);
+    if (raw && Number.isFinite(fixed) && fixed > 0) return fixed * 1000;
+  } catch {
+    /* ignore */
+  }
+  const [lo, hi] = AMBIENT_SECONDS;
+  return (lo + Math.random() * (hi - lo)) * 1000;
+}
 
 /** One line at the bottom of the sidebar; the details open in a popover. */
 function StatusLine() {
@@ -265,7 +292,10 @@ function StatusLine() {
               {formatCount(status.cache.hits)} hits · {formatCount(status.cache.misses)} misses
             </dd>
             <dt>Voice</dt>
-            <dd>{status.voice}</dd>
+            <dd data-testid="voice-status">
+              {voiceLabel(status)}
+              {status.voice_detail?.note ? <span className="small">{status.voice_detail.note}</span> : null}
+            </dd>
             <dt>Updates</dt>
             <dd>{streamLabel}</dd>
             <dt>Watcher</dt>
@@ -359,6 +389,27 @@ export function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showing]);
 
+  // Grove music and creature sounds: both only exist while the grove is being viewed.
+  const musicOn = useMusicPref() === "on";
+  const soundsOn = useSfxPref() === "on";
+  const [musicUnavailable, setMusicUnavailable] = useState(false);
+  useEffect(() => {
+    if (!showing || !soundsOn) return;
+    let timer = 0;
+    const next = () => {
+      timer = window.setTimeout(() => {
+        // quiet when the tab is hidden; `interrupt: false` never talks over a clicked creature
+        if (!document.hidden) void sfx.play(SFX_NAMES[Math.floor(Math.random() * SFX_NAMES.length)], SFX_VOLUME.ambient, { interrupt: false });
+        next();
+      }, ambientDelayMs());
+    };
+    next();
+    return () => {
+      window.clearTimeout(timer);
+      sfx.stop();
+    };
+  }, [showing, soundsOn]);
+
   useEffect(() => applyTheme(theme), [theme]);
   const motion = useMotion();
   useEffect(() => applyMotion(motion), [motion]);
@@ -383,6 +434,35 @@ export function Shell() {
           <span className="spacer" />
           <UserSwitcher />
           <ThemeToggle />
+          {showing ? (
+            <>
+              <button
+                type="button"
+                className="tog grove-opt"
+                aria-pressed={musicOn && !musicUnavailable}
+                aria-disabled={musicUnavailable || undefined}
+                title={musicUnavailable ? "The music could not be loaded" : musicOn ? "Pause the music" : "Play music"}
+                onClick={() => {
+                  if (!musicUnavailable) musicPrefStore.set(musicOn ? "off" : "on");
+                }}
+                data-testid="music-toggle"
+              >
+                <span aria-hidden="true">♪</span>
+                {musicUnavailable ? "Music unavailable" : musicOn ? "Music on" : "Music off"}
+              </button>
+              <button
+                type="button"
+                className="tog grove-opt"
+                aria-pressed={soundsOn}
+                title={soundsOn ? "Mute the creature sounds" : "Click a creature to hear it"}
+                onClick={() => sfxPrefStore.set(soundsOn ? "off" : "on")}
+                data-testid="sounds-toggle"
+              >
+                <span aria-hidden="true">{soundsOn ? "🔔" : "🔕"}</span>
+                {soundsOn ? "Sounds on" : "Sounds off"}
+              </button>
+            </>
+          ) : null}
           {theme === "dark" ? (
             <button
               type="button"
@@ -424,6 +504,7 @@ export function Shell() {
           )}
         </div>
         <GroveBackdrop showcase={showing} />
+        {theme === "dark" ? <GroveMusic active={showing} enabled={musicOn} onUnavailable={setMusicUnavailable} /> : null}
       </div>
     </AgentsProvider>
   );

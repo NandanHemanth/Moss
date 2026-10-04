@@ -25,8 +25,16 @@ let enabled = voicePrefStore.get() === "on";
 let unlocked = false; // a user gesture happened on this page
 let speakingId: string | null = null;
 let pumping = false;
-let currentAudio: HTMLAudioElement | null = null;
-let cancelCurrent: (() => void) | null = null;
+/** What is sounding right now. The whisper queue and the on-request "Listen" each have their own slot. */
+interface Slot {
+  cancel: (() => void) | null;
+}
+const whisperSlot: Slot = { cancel: null };
+const listenSlot: Slot = { cancel: null };
+// Shared "busy" guard: while something else is being read on request, the whisper queue holds.
+let held = false;
+let interrupted = false;
+let releaseWaiters: Array<() => void> = [];
 let snapshot: VoiceSnapshot = { enabled, speakingId, needsGesture: enabled && !unlocked };
 
 function publish() {
@@ -46,7 +54,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", onFirstGesture, true);
 }
 
-function speakWithBrowser(text: string): Promise<void> {
+function speakWithBrowser(text: string, slot: Slot = whisperSlot): Promise<void> {
   return new Promise((resolve) => {
     const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
     if (!synth || typeof SpeechSynthesisUtterance === "undefined") return resolve();
@@ -55,7 +63,7 @@ function speakWithBrowser(text: string): Promise<void> {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      cancelCurrent = null;
+      slot.cancel = null;
       resolve();
     };
     const u = new SpeechSynthesisUtterance(text);
@@ -64,7 +72,7 @@ function speakWithBrowser(text: string): Promise<void> {
     u.onerror = finish;
     // Safety net: some browsers never fire `end` (no voices installed, tab in background).
     const timer = setTimeout(finish, Math.min(45_000, 4_000 + text.length * 110));
-    cancelCurrent = () => {
+    slot.cancel = () => {
       synth.cancel();
       finish();
     };
@@ -77,23 +85,21 @@ function speakWithBrowser(text: string): Promise<void> {
   });
 }
 
-function playBlob(blob: Blob): Promise<boolean> {
+function playBlob(blob: Blob, slot: Slot = whisperSlot): Promise<boolean> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    currentAudio = audio;
     let done = false;
     const finish = (ok: boolean) => {
       if (done) return;
       done = true;
       URL.revokeObjectURL(url);
-      if (currentAudio === audio) currentAudio = null;
-      cancelCurrent = null;
+      slot.cancel = null;
       resolve(ok);
     };
     audio.onended = () => finish(true);
     audio.onerror = () => finish(false);
-    cancelCurrent = () => {
+    slot.cancel = () => {
       audio.pause();
       finish(true);
     };
@@ -105,17 +111,17 @@ async function speak(item: Item): Promise<void> {
   let played = false;
   try {
     const res = await rawRequest(`/api/notifications/${encodeURIComponent(item.id)}/audio`, { headers: { Accept: "audio/mpeg" } });
-    if (!enabled) return;
+    if (!enabled || held) return;
     if (res.status === 200) {
       const blob = await res.blob();
-      if (!enabled) return;
+      if (!enabled || held) return;
       if (blob.size > 0) played = await playBlob(blob);
     }
     // 204 (no ElevenLabs key) or any error status: fall through to the browser voice.
   } catch {
     /* network error: fall back to the browser voice */
   }
-  if (!played && enabled) await speakWithBrowser(item.text);
+  if (!played && enabled && !held) await speakWithBrowser(item.text);
 }
 
 async function pump() {
@@ -123,10 +129,18 @@ async function pump() {
   pumping = true;
   try {
     while (enabled && queue.length) {
+      if (held) {
+        // something is being read on request: wait until it is over, then carry on with the queue
+        await new Promise<void>((resolve) => releaseWaiters.push(resolve));
+        continue;
+      }
       const item = queue.shift()!;
       speakingId = item.id;
+      interrupted = false;
       publish();
       await speak(item);
+      // cut short by a "Listen" click: read it again afterwards instead of losing it
+      if (enabled && (interrupted || held) && !queue.some((q) => q.id === item.id)) queue.unshift(item);
       speakingId = null;
       publish();
     }
@@ -167,16 +181,108 @@ export const voice = {
   /** Stop the current utterance and drop everything queued. */
   stop() {
     queue.length = 0;
-    cancelCurrent?.();
-    currentAudio?.pause();
-    currentAudio = null;
+    interrupted = false;
+    whisperSlot.cancel?.();
+    if (!held) {
+      // (while "Listen" is speaking, the browser voice belongs to it)
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        /* ignore */
+      }
+    }
+    speakingId = null;
+  },
+};
+
+/** The tiny shared guard: hold the whisper queue while something else speaks. Returns the release function. */
+export function holdVoice(): () => void {
+  held = true;
+  if (speakingId) {
+    interrupted = true;
+    whisperSlot.cancel?.();
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    held = false;
+    const waiting = releaseWaiters;
+    releaseWaiters = [];
+    waiting.forEach((w) => w());
+    void pump();
+  };
+}
+
+// ---------------------------------------------------------------- "Listen": read one text aloud, on request only
+// POST /api/speak {text} -> 200 audio (played) or 204 (spoken with window.speechSynthesis). It is independent of
+// the whisper voice switch, never starts by itself, and holds the whisper queue while it plays.
+const SPEAK_MAX = 900; // the backend caps the text at 900 characters
+const listenListeners = new Set<() => void>();
+let listening = false;
+let listenRun = 0;
+let releaseListen: (() => void) | null = null;
+
+function setListening(next: boolean) {
+  if (listening === next) return;
+  listening = next;
+  listenListeners.forEach((l) => l());
+}
+
+export const listen = {
+  subscribe(l: () => void) {
+    listenListeners.add(l);
+    return () => {
+      listenListeners.delete(l);
+    };
+  },
+  getSnapshot: () => listening,
+
+  /** Call from a click handler (the click is the user gesture). Starting again restarts from the top. */
+  async start(text: string): Promise<void> {
+    const clean = text.replace(/\s+/g, " ").trim().slice(0, SPEAK_MAX);
+    if (!clean) return;
+    listen.stop();
+    const run = ++listenRun;
+    releaseListen = holdVoice();
+    setListening(true);
+    let played = false;
+    try {
+      const res = await rawRequest("/api/speak", { method: "POST", body: { text: clean }, headers: { Accept: "audio/mpeg" } });
+      if (run !== listenRun) return;
+      if (res.status === 200) {
+        const blob = await res.blob();
+        if (run !== listenRun) return;
+        if (blob.size > 0) played = await playBlob(blob, listenSlot);
+      }
+      // 204 (no ElevenLabs audio) or an error status: the browser voice reads it
+    } catch {
+      /* network error: the browser voice reads it */
+    }
+    if (run !== listenRun) return;
+    if (!played) await speakWithBrowser(clean, listenSlot);
+    if (run !== listenRun) return;
+    releaseListen?.();
+    releaseListen = null;
+    setListening(false);
+  },
+
+  /** Stop at once. */
+  stop() {
+    if (!listening) return;
+    listenRun++;
+    listenSlot.cancel?.();
     try {
       window.speechSynthesis?.cancel();
     } catch {
       /* ignore */
     }
-    speakingId = null;
+    releaseListen?.();
+    releaseListen = null;
+    setListening(false);
   },
 };
+
+export const useListening = () => useSyncExternalStore(listen.subscribe, listen.getSnapshot);
 
 export const useVoice = () => useSyncExternalStore(voice.subscribe, voice.getSnapshot);

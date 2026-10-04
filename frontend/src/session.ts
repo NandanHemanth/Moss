@@ -45,6 +45,12 @@ export const voicePrefStore = persisted<"on" | "off">("moss.voice", "off", (v) =
  *  setting (Windows "Animation effects" off made the grove a still picture); the top-bar toggle turns it off. */
 export const motionStore = persisted<"on" | "off">("moss.motion", "on", (v) => v === "on" || v === "off");
 
+/** "View the grove": background music (YouTube mini-player) and creature sounds. Both default to ON. */
+export const musicPrefStore = persisted<"on" | "off">("moss.groveMusic", "on", (v) => v === "on" || v === "off");
+export const sfxPrefStore = persisted<"on" | "off">("moss.groveSounds", "on", (v) => v === "on" || v === "off");
+export const useMusicPref = () => useSyncExternalStore(musicPrefStore.subscribe, musicPrefStore.get);
+export const useSfxPref = () => useSyncExternalStore(sfxPrefStore.subscribe, sfxPrefStore.get);
+
 export const useUserId = () => useSyncExternalStore(userStore.subscribe, userStore.get);
 export const useTheme = () => useSyncExternalStore(themeStore.subscribe, themeStore.get);
 

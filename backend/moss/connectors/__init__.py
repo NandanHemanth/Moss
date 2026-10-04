@@ -38,6 +38,30 @@ def gmail(): return get("gmail")
 def calendar(): return get("calendar")
 
 
+def reason(tool: str) -> str | None:
+    """Plain-language reason a tool is on its mock adapter, with the fix. None when it is live."""
+    if get(tool).mode == "live":
+        return None
+    if settings.force_mock:
+        return "MOSS_FORCE_MOCK=1 is set in backend/.env."
+    if tool in ("gmail", "calendar"):
+        from importlib.util import find_spec
+        from pathlib import Path
+        if not Path(settings.google_token).is_file():
+            have = Path(settings.google_credentials).is_file()
+            return ("No Google sign-in on this machine. " + ("Run: python -m moss.connectors.google_auth" if have else
+                    "Copy credentials.json and token.json into the backend folder (or copy credentials.json and run: "
+                    "python -m moss.connectors.google_auth), then restart the backend."))
+        if not (find_spec("googleapiclient") and find_spec("google_auth_oauthlib")):
+            return "Google libraries are missing. Run: python -m pip install google-auth-oauthlib google-api-python-client"
+        return "Google sign-in failed to load; run python -m moss.doctor for details."
+    if tool in ("jira", "confluence"):
+        return "Set ATLASSIAN_SITE, ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN in backend/.env, then restart."
+    if tool == "slack":
+        return "Set SLACK_BOT_TOKEN in backend/.env, then restart."
+    return None
+
+
 def modes() -> dict:
     return {tool: get(tool).mode for tool in _SPECS} | {"meeting": "seeded"}
 

@@ -363,6 +363,11 @@ export function AskPage() {
             <span className={`tag ${modeTone(agent.mode)}`} style={{ marginLeft: 0 }}>
               {compactMode(agent.mode)}
             </span>
+            {agent.reason ? (
+              <p className="small mode-reason" data-testid="mode-reason">
+                {agent.reason}
+              </p>
+            ) : null}
           </>
         ) : null}
         {thread.length > 0 ? (

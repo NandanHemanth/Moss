@@ -37,8 +37,8 @@ Copy `.env.example` to `.env` to change it. Every request carries `X-Moss-User: 
 `?user=<id>` because `EventSource` cannot send headers.
 
 Choices remembered in `localStorage`: `moss.user` (demo user, default `maya`), `moss.theme` (`light` | `dark`),
-`moss.voice` (`on` | `off`, default off), `moss.motion` (`on` | `off`, default on), `moss.code` (access code, only
-when the API is locked).
+`moss.voice` (`on` | `off`, default off), `moss.motion` (`on` | `off`, default on), `moss.groveMusic` and
+`moss.groveSounds` (`on` | `off`, both default on), `moss.code` (access code, only when the API is locked).
 
 ## Deploying
 
@@ -75,9 +75,11 @@ src/
     liveProvider.ts            refine LiveProvider on top of GET /api/stream (SSE); maps events to resources
   hooks/
     useMoss.ts                 typed wrappers: useMossList (useList), useMossQuery (useCustom), useAgents, useAllowed, useRole
-    voice.ts                   spoken notifications: audio endpoint -> speechSynthesis fallback, queue, mute
+    voice.ts                   spoken notifications: audio endpoint -> speechSynthesis fallback, queue, mute;
+                               the on-request "Listen" (POST /api/speak) and the guard that holds the queue for it
   lib/
     agents.ts                  THE agent avatar map (glyph + colour per agent id) and mode-tag helpers
+    sfx.ts                     grove creature sounds: GET /api/sfx/{name}, decoded cache, synthesised fallback tone
     format.ts                  dates, relative time, greeting, small text helpers
   components/
     Shell.tsx                  layout: top bar (identity, user switch, theme switch, grove button, settings gear),
@@ -91,7 +93,8 @@ src/
                                "via workflow" tag, and the manager's "ask for help" row (email drafts, never sent)
     CommitmentsTable.tsx       open commitments with "Done" (and undo); first 5, then "Show all (n)"
     Whispers.tsx               notification feed (right rail)
-    GroveBackdrop.tsx          dark theme backdrop: lazy-loads the 3D grove, falls back to Scenery
+    GroveBackdrop.tsx          dark theme backdrop: lazy-loads the 3D grove, falls back to Scenery; creature clicks
+    GroveMusic.tsx             "View the grove" music: the YouTube IFrame mini-player (showcase mode only)
     Scenery.tsx                flat forest SVG + fireflies; only the fallback when WebGL is unavailable
     States.tsx                 loading / empty / error blocks
   pages/
@@ -100,6 +103,8 @@ src/
     Timeline.tsx               "/timeline"  unified timeline, account + source filters
     Graph.tsx                  "/graph"  force-directed knowledge graph
     Canvas.tsx                 "/canvas"  workflow canvas, managers only, lazy-loaded (employees are sent to "/")
+                               test-run drawer: "Dry run — nothing was sent." -> "Send to approvals" -> the queued
+                               actions with "Approve and run" (POST /api/proposals/{id}/approve-all) and their results
     Memory.tsx                 "/memory"  the three memory layers (cache, knowledge graph, SQLite) with live numbers
                                from GET /api/memory, and "Prove it": POST /api/memory/compare for one question
   grove/                       the 3D "Enchanted grove" scene (its own lazy chunk, see below)
@@ -144,6 +149,12 @@ audio on `200`, or speak the text with `window.speechSynthesis` on `204`. Uttera
 muting stops the current one immediately. If voice was left on in an earlier visit, the toggle says
 "Voice on — click anywhere to start" until the first click or key press on the page.
 
+**Listen (stakeholder summary).** The Stakeholder summary tile and its detail popover have a small "Listen"
+button. Only a click starts it: the summary sentences are sent as one text to `POST /api/speak`; a `200` is played,
+a `204` is spoken with `window.speechSynthesis`. The button reads "Stop" while it plays. It does not depend on the
+voice switch above, and it holds the whisper queue while it reads (`holdVoice()` and `listen` in `hooks/voice.ts`);
+a whisper it interrupts is read again afterwards.
+
 ## Enchanted grove (dark theme)
 
 The dark theme sits on a live 3D scene: a moonlit clearing with fog-layered trees, light shafts, glowing
@@ -169,6 +180,22 @@ and taller than 620px the frame becomes a fixed sheet whose columns scroll on th
 scene (`--band`) stays visible at the bottom, where the animals walk. On smaller screens the page scrolls as
 before over the fixed scene. **View the grove** (top bar, dark theme only) fades the panels to near-invisible
 and brightens the scene; click it again or press Escape to come back.
+
+**Music in "View the grove".** Entering showcase mode starts one track in the official YouTube IFrame Player
+(`components/GroveMusic.tsx`): a small visible card docked bottom-right (220×200 player plus a caption linking to
+the video), host `youtube-nocookie.com`, looped, volume 35. Nothing is downloaded or extracted, and the player
+stays visible because YouTube's terms require it. To change the track, edit `GROVE_MUSIC_VIDEO_ID` (and the
+caption next to it) in `src/config.ts`; the video must allow embedding. "Music on / Music off" sits next to "Back
+to Moss" and is remembered. Leaving showcase mode pauses and removes the player; the light theme and normal dark
+mode request nothing from YouTube. If the API script or the video cannot load, the card is hidden and the toggle
+reads "Music unavailable".
+
+**Creature sounds.** In showcase mode the canvas takes pointer events: clicking an animal (generous invisible
+hit spheres, `pick()` in `grove/index.ts`) plays `GET /api/sfx/{stag|fox|owl|raven|tortoise|firefly}` at volume
+0.5 and gives it a short glow pulse (the pulse is skipped with motion off, the sound is not). Every 18–40 s one
+random creature is heard quietly (0.12); never two sounds at once, none while the tab is hidden. Sounds are
+fetched on first use and kept decoded in memory; a `204` or a decode failure falls back to a soft synthesised
+tone (`lib/sfx.ts`). "Sounds on / Sounds off" is remembered.
 
 **Tuning.**
 
@@ -205,7 +232,10 @@ at level 0: about 215k triangles, about 100 draw calls plus the bloom passes, ab
 **Debug switches** (query string, harmless): `?grove=high|medium|low` pins the quality, `?grove=govern` starts at
 full quality with only the governor, `?grove=off` forces the SVG fallback, `?groveT=20` starts the scene 20
 seconds in, `?groveFocus=stag|fox|owl|raven|tortoise|fireflies` points the camera at one animal.
-`window.__mossGrove.info()` reports quality, draw calls, triangles and where each animal is.
+`?groveAmbient=3` plays the ambient creature sound every 3 seconds.
+`window.__mossGrove.info()` reports quality, draw calls, triangles and where each animal is;
+`window.__mossGrove.creatureScreenPositions()` gives each animal's viewport pixel position (for click tests) and
+`window.__mossGrove.pick(x, y)` says which animal is under a point.
 
 ## Resetting demo data
 

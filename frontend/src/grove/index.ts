@@ -74,7 +74,18 @@ export interface GroveHandle {
   /** Showcase mode: the UI is faded out, so the scene may be brighter. */
   setShowcase(on: boolean): void;
   info(): GroveInfo;
+  /** Which creature is under this viewport point (stag, fox, owl, raven, tortoise, firefly), or null. */
+  pick(clientX: number, clientY: number): string | null;
+  /** A brief glow pulse on one creature (skipped while motion is off). */
+  react(name: string): void;
+  /** Debug: where each creature currently is on screen, in viewport pixels. */
+  creatureScreenPositions(): Record<string, { x: number; y: number; visible: boolean }>;
 }
+
+/** Picking: each creature has an invisible sphere round its focus point. The radius is generous (a share of
+ *  its size, and never smaller than `minAngle` of the view so distant birds stay clickable). */
+const PICK = { sizeFactor: 0.62, minAngle: 0.035, pulseSeconds: 0.9 };
+const pickName = (name: string) => (name === "fireflies" ? "firefly" : name);
 
 /** Starting quality from the GPU's name: software renderers start lightest, older Intel graphics without bloom. */
 function guessLevel(renderer: THREE.WebGLRenderer): GroveQuality {
@@ -135,6 +146,34 @@ export function createGrove(container: HTMLElement, options: GroveOptions): Grov
   const eyeY = groundY(0, -3) + CAMERA.eye;
   const camNow = new THREE.Vector3(CAMERA.x, eyeY, CAMERA.z);
   const focusCreature = options.focus ? creatures.list.find((c) => c.name === options.focus) : undefined;
+
+  // ---- picking and the click reaction
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const sphere = new THREE.Sphere();
+  const hitPoint = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  const pulse = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: glow, color: 0xd9ffc4, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false }),
+  );
+  pulse.visible = false;
+  pulse.renderOrder = 20;
+  scene.add(pulse);
+  let pulseOn: { creature: (typeof creatures.list)[number]; age: number } | null = null;
+  function stepPulse(dt: number) {
+    if (!pulseOn) return;
+    pulseOn.age += dt;
+    const k = pulseOn.age / PICK.pulseSeconds;
+    if (k >= 1) {
+      pulseOn = null;
+      pulse.visible = false;
+      return;
+    }
+    const c = pulseOn.creature;
+    pulse.position.copy(c.focus);
+    pulse.scale.setScalar(c.size * (1.1 + 1.5 * k));
+    (pulse.material as THREE.SpriteMaterial).opacity = 0.85 * Math.sin(Math.PI * Math.min(1, k * 1.15)) * (1 - k * 0.4);
+  }
 
   const pixelRatio = () => Math.min(window.devicePixelRatio || 1, TUNING.pixelRatio[level]);
 
@@ -203,6 +242,7 @@ export function createGrove(container: HTMLElement, options: GroveOptions): Grov
     time.value += dt;
     env.update(time.value);
     creatures.update(dt, time.value, camNow);
+    stepPulse(dt);
   }
 
   function placeCamera(dt: number) {
@@ -407,6 +447,51 @@ export function createGrove(container: HTMLElement, options: GroveOptions): Grov
       if (on === showcase) return;
       showcase = on;
       if (!raf) renderStill();
+    },
+    pick(clientX, clientY) {
+      if (disposed) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(ndc, camera);
+      let best: string | null = null;
+      let bestDist = Infinity;
+      for (const c of creatures.list) {
+        const dist = raycaster.ray.origin.distanceTo(c.focus);
+        sphere.center.copy(c.focus);
+        sphere.radius = Math.max(c.size * PICK.sizeFactor, dist * PICK.minAngle);
+        if (!raycaster.ray.intersectSphere(sphere, hitPoint)) continue;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = pickName(c.name);
+        }
+      }
+      return best;
+    },
+    react(name) {
+      if (disposed || reduced) return; // motion off: the scene is a still frame, sound is the feedback
+      const c = creatures.list.find((x) => pickName(x.name) === name);
+      if (!c) return;
+      pulseOn = { creature: c, age: 0 };
+      pulse.visible = true;
+      stepPulse(0);
+    },
+    creatureScreenPositions() {
+      const rect = canvas.getBoundingClientRect();
+      const out: Record<string, { x: number; y: number; visible: boolean }> = {};
+      camera.updateMatrixWorld();
+      for (const c of creatures.list) {
+        projected.copy(c.focus).project(camera);
+        const x = rect.left + ((projected.x + 1) / 2) * rect.width;
+        const y = rect.top + ((1 - projected.y) / 2) * rect.height;
+        out[pickName(c.name)] = {
+          x: Math.round(x),
+          y: Math.round(y),
+          visible: projected.z > -1 && projected.z < 1 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom,
+        };
+      }
+      return out;
     },
     info() {
       const out: GroveInfo = {
