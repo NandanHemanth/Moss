@@ -1,0 +1,154 @@
+{
+  "communities": {
+    "0": [
+      "confluence_40_eu_data_residency",
+      "gmail_11_acme_pricing",
+      "zoom_1_acme_discovery"
+    ],
+    "1": [
+      "confluence_41_payroll_integration",
+      "gmail_12_globex_api",
+      "zoom_2_globex_intro"
+    ],
+    "2": [
+      "gmail_10_okta_scim",
+      "jira_30_plat_204",
+      "slack_20_acme_pilot"
+    ],
+    "3": [
+      "jira_31_plat_212",
+      "zoom_3_platform_sync"
+    ],
+    "4": [
+      "gmail_13_initech_renewal"
+    ],
+    "5": [
+      "slack_21_umbrella_hr"
+    ],
+    "6": [
+      "zoom_4_stark_procurement"
+    ]
+  },
+  "cohesion": {
+    "0": 0.6666666666666666,
+    "1": 0.6666666666666666,
+    "2": 0.6666666666666666,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0
+  },
+  "gods": [
+    {
+      "id": "zoom_1_acme_discovery",
+      "label": "Acme Payroll Discovery Call",
+      "degree": 3
+    },
+    {
+      "id": "confluence_41_payroll_integration",
+      "label": "Payroll Integration Guide",
+      "degree": 2
+    },
+    {
+      "id": "gmail_10_okta_scim",
+      "label": "Re: Okta SCIM support?",
+      "degree": 2
+    },
+    {
+      "id": "jira_30_plat_204",
+      "label": "PLAT-204: Okta SCIM connector",
+      "degree": 2
+    },
+    {
+      "id": "confluence_40_eu_data_residency",
+      "label": "EU Data Residency FAQ",
+      "degree": 1
+    },
+    {
+      "id": "gmail_11_acme_pricing",
+      "label": "Acme Pilot Pricing Email",
+      "degree": 1
+    },
+    {
+      "id": "gmail_12_globex_api",
+      "label": "API Documentation Request Email",
+      "degree": 1
+    },
+    {
+      "id": "jira_31_plat_212",
+      "label": "PLAT-212: Vendor API key for address validation",
+      "degree": 1
+    },
+    {
+      "id": "slack_20_acme_pilot",
+      "label": "#acme-shared pilot scope",
+      "degree": 1
+    },
+    {
+      "id": "zoom_2_globex_intro",
+      "label": "Globex Intro Call",
+      "degree": 1
+    }
+  ],
+  "surprises": [
+    {
+      "source": "API Documentation Request Email",
+      "target": "Payroll Integration Guide",
+      "source_files": [
+        "gmail-12.md",
+        "confluence-41.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Globex Intro Call",
+      "target": "Payroll Integration Guide",
+      "source_files": [
+        "zoom-2.md",
+        "confluence-41.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Re: Okta SCIM support?",
+      "target": "PLAT-204: Okta SCIM connector",
+      "source_files": [
+        "gmail-10.md",
+        "jira-30.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "#acme-shared pilot scope",
+      "target": "Re: Okta SCIM support?",
+      "source_files": [
+        "slack-20.md",
+        "gmail-10.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Acme Pilot Pricing Email",
+      "target": "Acme Payroll Discovery Call",
+      "source_files": [
+        "gmail-11.md",
+        "zoom-1.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source"
+    }
+  ],
+  "tokens": {
+    "input": 3856,
+    "output": 1833
+  }
+}

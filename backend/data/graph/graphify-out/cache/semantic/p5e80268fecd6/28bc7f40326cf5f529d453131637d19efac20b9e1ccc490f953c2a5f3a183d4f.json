@@ -1,0 +1,1 @@
+{"nodes": [{"id": "gmail_11_acme_pricing", "label": "Acme Pilot Pricing Email", "file_type": "document", "source_file": "gmail-11.md"}], "edges": [{"source": "gmail_11_acme_pricing", "target": "zoom_1_acme_discovery", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.9, "source_file": "gmail-11.md"}], "hyperedges": []}

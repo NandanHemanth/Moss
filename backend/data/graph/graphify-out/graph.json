@@ -1,0 +1,247 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": [
+      {
+        "id": "acme_payroll_pilot_flow",
+        "label": "Acme Payroll Pilot Alignment",
+        "nodes": [
+          "zoom_1_acme_discovery",
+          "gmail_10_okta_scim",
+          "gmail_11_acme_pricing",
+          "slack_20_acme_pilot",
+          "jira_30_plat_204"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 0.95,
+        "source_file": "zoom-1.md"
+      },
+      {
+        "id": "globex_onboarding_flow",
+        "label": "Globex API & Integration Evaluation",
+        "nodes": [
+          "zoom_2_globex_intro",
+          "gmail_12_globex_api",
+          "confluence_41_payroll_integration"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 0.95,
+        "source_file": "zoom-2.md"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "confluence_40_eu_data_residency",
+      "label": "EU Data Residency FAQ",
+      "community": 0,
+      "file_type": "document",
+      "norm_label": "eu data residency faq",
+      "source_file": "confluence-40.md"
+    },
+    {
+      "id": "gmail_11_acme_pricing",
+      "label": "Acme Pilot Pricing Email",
+      "community": 0,
+      "file_type": "document",
+      "norm_label": "acme pilot pricing email",
+      "source_file": "gmail-11.md"
+    },
+    {
+      "id": "zoom_1_acme_discovery",
+      "label": "Acme Payroll Discovery Call",
+      "community": 0,
+      "file_type": "document",
+      "norm_label": "acme payroll discovery call",
+      "source_file": "zoom-1.md"
+    },
+    {
+      "id": "confluence_41_payroll_integration",
+      "label": "Payroll Integration Guide",
+      "community": 1,
+      "file_type": "document",
+      "norm_label": "payroll integration guide",
+      "source_file": "confluence-41.md"
+    },
+    {
+      "id": "gmail_12_globex_api",
+      "label": "API Documentation Request Email",
+      "community": 1,
+      "file_type": "document",
+      "norm_label": "api documentation request email",
+      "source_file": "gmail-12.md"
+    },
+    {
+      "id": "zoom_2_globex_intro",
+      "label": "Globex Intro Call",
+      "community": 1,
+      "file_type": "document",
+      "norm_label": "globex intro call",
+      "source_file": "zoom-2.md"
+    },
+    {
+      "id": "jira_30_plat_204",
+      "label": "PLAT-204: Okta SCIM connector",
+      "community": 2,
+      "file_type": "code",
+      "norm_label": "plat-204: okta scim connector",
+      "source_file": "jira-30.md"
+    },
+    {
+      "id": "gmail_10_okta_scim",
+      "label": "Re: Okta SCIM support?",
+      "community": 2,
+      "file_type": "document",
+      "norm_label": "re: okta scim support?",
+      "source_file": "gmail-10.md"
+    },
+    {
+      "id": "slack_20_acme_pilot",
+      "label": "#acme-shared pilot scope",
+      "community": 2,
+      "file_type": "document",
+      "norm_label": "#acme-shared pilot scope",
+      "source_file": "slack-20.md"
+    },
+    {
+      "id": "jira_31_plat_212",
+      "label": "PLAT-212: Vendor API key for address validation",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "plat-212: vendor api key for address validation",
+      "source_file": "jira-31.md"
+    },
+    {
+      "id": "zoom_3_platform_sync",
+      "label": "Platform Sync Call",
+      "community": 3,
+      "file_type": "document",
+      "norm_label": "platform sync call",
+      "source_file": "zoom-3.md"
+    },
+    {
+      "id": "gmail_13_initech_renewal",
+      "label": "Initech Renewal Signed Email",
+      "community": 4,
+      "file_type": "document",
+      "norm_label": "initech renewal signed email",
+      "source_file": "gmail-13.md"
+    },
+    {
+      "id": "slack_21_umbrella_hr",
+      "label": "#sales-leads Umbrella HR",
+      "community": 5,
+      "file_type": "document",
+      "norm_label": "#sales-leads umbrella hr",
+      "source_file": "slack-21.md"
+    },
+    {
+      "id": "zoom_4_stark_procurement",
+      "label": "Stark Procurement Sync Call",
+      "community": 6,
+      "file_type": "document",
+      "norm_label": "stark procurement sync call",
+      "source_file": "zoom-4.md"
+    }
+  ],
+  "links": [
+    {
+      "source": "zoom_1_acme_discovery",
+      "target": "confluence_40_eu_data_residency",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "zoom-1.md"
+    },
+    {
+      "source": "zoom_1_acme_discovery",
+      "target": "jira_30_plat_204",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "zoom-1.md"
+    },
+    {
+      "source": "zoom_3_platform_sync",
+      "target": "jira_31_plat_212",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "zoom-3.md"
+    },
+    {
+      "source": "slack_20_acme_pilot",
+      "target": "gmail_10_okta_scim",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "slack-20.md"
+    },
+    {
+      "source": "gmail_10_okta_scim",
+      "target": "jira_30_plat_204",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "gmail-10.md"
+    },
+    {
+      "source": "gmail_11_acme_pricing",
+      "target": "zoom_1_acme_discovery",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "gmail-11.md"
+    },
+    {
+      "source": "gmail_12_globex_api",
+      "target": "confluence_41_payroll_integration",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "gmail-12.md"
+    },
+    {
+      "source": "zoom_2_globex_intro",
+      "target": "confluence_41_payroll_integration",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "zoom-2.md"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "acme_payroll_pilot_flow",
+      "label": "Acme Payroll Pilot Alignment",
+      "nodes": [
+        "zoom_1_acme_discovery",
+        "gmail_10_okta_scim",
+        "gmail_11_acme_pricing",
+        "slack_20_acme_pilot",
+        "jira_30_plat_204"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "zoom-1.md"
+    },
+    {
+      "id": "globex_onboarding_flow",
+      "label": "Globex API & Integration Evaluation",
+      "nodes": [
+        "zoom_2_globex_intro",
+        "gmail_12_globex_api",
+        "confluence_41_payroll_integration"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "zoom-2.md"
+    }
+  ],
+  "built_at_commit": "0831947c34dc5c23bd48fa97847218806e8fd462"
+}

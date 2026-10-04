@@ -1,0 +1,1 @@
+{"nodes": [{"id": "gmail_10_okta_scim", "label": "Re: Okta SCIM support?", "file_type": "document", "source_file": "gmail-10.md"}], "edges": [{"source": "gmail_10_okta_scim", "target": "jira_30_plat_204", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.9, "source_file": "gmail-10.md"}], "hyperedges": []}

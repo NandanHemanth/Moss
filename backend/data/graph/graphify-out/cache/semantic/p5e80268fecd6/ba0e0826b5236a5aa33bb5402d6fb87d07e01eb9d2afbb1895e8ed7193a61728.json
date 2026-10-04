@@ -1,0 +1,1 @@
+{"nodes": [{"id": "slack_20_acme_pilot", "label": "#acme-shared pilot scope", "file_type": "document", "source_file": "slack-20.md"}], "edges": [{"source": "slack_20_acme_pilot", "target": "gmail_10_okta_scim", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.85, "source_file": "slack-20.md"}], "hyperedges": []}

@@ -1,0 +1,169 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-mode="grove"] body {
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(143, 196, 106, 0.1), transparent 55%),
+    radial-gradient(ellipse at 85% 5%, rgba(127, 183, 217, 0.07), transparent 50%),
+    linear-gradient(180deg, #0b1410 0%, #0d1712 60%, #101d16 100%);
+  background-attachment: fixed;
+  color-scheme: dark;
+}
+
+.grove-backdrop {
+  display: none;
+}
+
+[data-mode="grove"] .grove-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.grove-backdrop svg {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 45vh;
+  opacity: 0.9;
+}
+
+.firefly {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f1df7a;
+  box-shadow: 0 0 10px 3px rgba(241, 223, 122, 0.5);
+  animation:
+    moss-drift 9s ease-in-out infinite,
+    moss-blink 3s ease-in-out infinite;
+}
+
+@keyframes moss-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(30px, -40px);
+  }
+}
+
+@keyframes moss-blink {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.moss-shell {
+  position: relative;
+  z-index: 1;
+}
+
+[data-mode="grove"] .ant-card,
+[data-mode="grove"] .ant-layout-sider,
+[data-mode="grove"] .ant-layout-header {
+  backdrop-filter: blur(8px);
+}
+
+.page {
+  padding: 24px 28px 40px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 !important;
+}
+
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 700;
+  color: #fff;
+  background: #2f6b45;
+}
+
+[data-mode="grove"] .brand-mark {
+  background: #8fc46a;
+  color: #0d1712;
+  box-shadow: 0 0 16px rgba(143, 196, 106, 0.45);
+}
+
+.brand-name {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.proposal {
+  border-left: 3px solid var(--accent, #2f6b45);
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  white-space: pre-wrap;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+kbd {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+}
