@@ -248,13 +248,14 @@ async def test_confluence_unknown_space_is_a_clear_error(atlassian):
 
 
 async def test_confluence_search_uses_v1_cql_in_space(atlassian):
-    fake = Fake({("GET", "/wiki/rest/api/search"): {
+    fake = Fake({("GET", "/wiki/api/v2/spaces"): {"results": [{"id": "98765", "key": "ENG"}]},
+                 ("GET", "/wiki/rest/api/search"): {
         "results": [{"content": {"id": "4242", "type": "page", "title": "API migration runbook"},
                      "title": "API @@@hl@@@migration@@@endhl@@@ runbook", "excerpt": "How to move an endpoint &amp; verify",
                      "url": "/spaces/ENG/pages/4242/API+migration+runbook", "lastModified": "2026-09-24T17:00:00.000Z"}],
         "_links": {"base": f"{SITE}/wiki"}}})
     rows = await LiveConfluence(fake.transport).search("migration runbook", limit=8)
-    params = fake.calls[0].url.params
+    params = fake.sent("/wiki/rest/api/search")[0].url.params
     assert params["cql"] == 'space = "ENG" AND type = page AND (text ~ "migration" OR text ~ "runbook")'
     assert params["limit"] == "8"
     assert rows[0]["id"] == "4242" and rows[0]["title"] == "API migration runbook"
@@ -707,3 +708,17 @@ async def test_seed_live_creates_and_skips(atlassian, slack_token, monkeypatch, 
     pages = [body(c)["title"] for c in fake.sent("/wiki/api/v2/pages", "POST")]
     assert pages == ["Harborline Freight — account page"] and "skip    API migration runbook" in out
     assert "slack: skipped, not configured" in out and "gmail, calendar: not seeded" in out
+
+
+async def test_confluence_space_key_matches_ignoring_case(atlassian, monkeypatch):
+    monkeypatch.setattr(settings, "confluence_space", "MOSS")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/wiki/api/v2/spaces" and request.url.params.get("keys") == "MOSS":
+            return httpx.Response(200, json={"results": []})          # exact key lookup finds nothing
+        if request.url.path == "/wiki/api/v2/spaces":
+            return httpx.Response(200, json={"results": [{"id": "1", "key": "~personal"}, {"id": "42", "key": "Moss"}]})
+        return httpx.Response(404, json={"message": "unexpected"})
+
+    conf = LiveConfluence(transport=httpx.MockTransport(handler))
+    assert await conf.space_id() == "42" and conf.space == "Moss"

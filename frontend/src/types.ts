@@ -38,6 +38,21 @@ export interface Status {
   connectors: Record<string, string>;
   voice: string;
   counts: Record<string, number>;
+  /** Items fetched from live tools that are still waiting to be understood. */
+  backlog?: number;
+  watch?: WatchStatus;
+}
+
+/** The background watcher that polls live tools (GET /api/status -> watch). */
+export interface WatchStatus {
+  enabled: boolean;
+  every_seconds: number;
+  runs: number;
+  last_run: string | null;
+  last_new: number;
+  triggered: number;
+  errors: Record<string, string>;
+  watching: string[];
 }
 
 export interface Account {
@@ -49,7 +64,7 @@ export interface Account {
   events: number;
 }
 
-export type InsightKind = "decision" | "commitment" | "risk" | string;
+export type InsightKind = "decision" | "commitment" | "risk" | "request" | string;
 
 export interface Insight {
   kind: InsightKind;
@@ -148,6 +163,59 @@ export interface AskResponse {
   trace: string[];
   queued_actions: string[];
   route: string;
+  /** What the three memory layers contributed to this answer (absent on older responses). */
+  memory?: AskMemory | null;
+}
+
+export interface AskMemory {
+  ms?: number;
+  cache_hits?: number;
+  cache_misses?: number;
+  graph_facts?: number;
+  /** agent ids whose tools contributed facts */
+  tools?: string[];
+  store_reads?: number;
+}
+
+/** GET /api/memory: live numbers for the three memory layers. */
+export interface MemoryStats {
+  cache: { hits: number; misses: number; saved_ms: number; namespaces: Record<string, number> };
+  graph: {
+    backend: string;
+    facts: number;
+    graphiti?: { enabled?: boolean; ok?: number; failed?: number; queued?: number; last_error?: string | null };
+    by_type: Record<string, number>;
+    by_tool: Record<string, number>;
+    cross_tool: Array<{ account: string; tools: string[]; facts: number }>;
+  };
+  store: {
+    tables: Record<string, number>;
+    decisions: Record<string, number>;
+    recent_audit: Array<{ ts: string; user_id: string; action: string; detail: string | null }>;
+  };
+  llm?: Status["llm"];
+}
+
+/** POST /api/memory/compare: one question answered with and without the memory layers. */
+export interface MemoryCompare {
+  question: string;
+  raw: { documents: number; chars: number; ms: number; sample: string[]; tools: string[]; tokens: number };
+  graph: {
+    facts: number;
+    chars: number;
+    ms: number;
+    tools: string[];
+    sample: Array<{ fact: string; date: string | null; source: string | null }>;
+    tokens: number;
+  };
+  cache: { cold_ms: number; warm_ms: number; speedup: number };
+  store: {
+    open_commitments: Array<{ text: string; owner: string | null; due: string | null; account: string | null; status: string }>;
+    approved_actions: number;
+    audit_entries: number;
+  };
+  llm_answer: { text?: string; first_ms?: number; repeat_ms?: number; route?: string; error?: string } | null;
+  context_saving_percent: number;
 }
 
 export interface DemoQueueItem {

@@ -86,3 +86,16 @@ export const plural = (n: number, one: string, many: string = `${one}s`): string
 export function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
+
+/** Durations: "0.03 ms", "0.87 ms", "9.4 ms", "12 ms", "850 ms", "1.2 s", "14 s". Under 10 ms keeps 1–2 decimals. */
+export function formatMs(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined || !Number.isFinite(ms)) return "—";
+  if (ms >= 10_000) return `${Math.round(ms / 1000)} s`;
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
+  if (ms >= 10) return `${Math.round(ms)} ms`;
+  if (Number.isInteger(ms)) return `${ms} ms`; // whole numbers (rounded by the API) get no fake precision
+  if (ms >= 1) return `${ms.toFixed(1)} ms`;
+  return `${ms.toFixed(2)} ms`;
+}
+
+export const formatCount = (n: number | null | undefined): string => (typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("en-US") : "—");

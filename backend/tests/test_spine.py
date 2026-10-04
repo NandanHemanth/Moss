@@ -136,3 +136,52 @@ def test_html_error_pages_become_short_messages():
     assert "window" not in error_text(httpx.Response(401, text=noisy))
     assert "Reinstall" in _hint("slack", "Slack conversations.list: missing_scope (needs scope channels:read)")
     assert "admin.atlassian.com" in _hint("confluence", "Confluence 401 on GET /wiki/api/v2/spaces: Unauthorized")
+
+
+async def test_gemini_falls_back_to_next_model(monkeypatch):
+    from moss import cache, llm
+    from moss.config import settings
+    monkeypatch.setattr(settings, "gemini_key", "test-key")
+    monkeypatch.setattr(settings, "gemini_model", "busy-model")
+    monkeypatch.setattr(settings, "gemini_fallback_models", ["good-model", "other-model"])
+    monkeypatch.setattr(llm, "_cooldown", {})
+    cache.invalidate("llm")
+    calls = []
+
+    async def fake(prompt, system, model, schema):
+        calls.append(model)
+        if model == "busy-model":
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+        return "pong"
+
+    monkeypatch.setattr(llm, "_gemini_call", fake)
+    assert await llm.generate_text("ping one") == "pong"
+    assert calls == ["busy-model", "good-model"] and llm.state["last_route"] == "gemini:good-model"
+    assert await llm.generate_text("ping two") == "pong"
+    assert calls[2:] == ["good-model"], "the overloaded model is skipped while it cools down"
+    assert llm.model_chain()[-1] == "busy-model"
+
+
+def test_memory_layers_are_measurable(client):
+    m = client.get("/api/memory", headers=MAYA).json()
+    assert m["graph"]["facts"] > 30 and m["graph"]["cross_tool"][0]["tools"] and m["store"]["tables"]["events"] >= 15
+    harbor = next(a for a in m["graph"]["cross_tool"] if a["account"] == "Harborline Freight")
+    assert len(harbor["tools"]) >= 3, "one account is connected across several tools"
+    r = client.post("/api/memory/compare", headers=MAYA, json={"question": "What did we discuss with Harborline last month?"}).json()
+    assert r["raw"]["documents"] > 0 and 0 < r["graph"]["tokens"] < r["raw"]["tokens"] and r["context_saving_percent"] > 0
+    assert r["cache"]["warm_ms"] < r["cache"]["cold_ms"] and r["llm_answer"] is None
+    assert client.get("/api/memory", headers=SAM).json()["store"]["recent_audit"] == []
+    a = client.post("/api/ask", headers=MAYA, json={"agent_id": "stag", "message": "What do we know about Pinecrest?"}).json()
+    assert a["memory"]["graph_facts"] > 0 and "ms" in a["memory"]
+
+
+async def test_request_email_gets_a_proposal_offline(client):
+    from moss import actions, pipeline
+    pipeline.store_event({"id": "gmail:test-1", "source": "gmail", "title": "Bug in payroll export", "occurred_at": "2026-10-04T01:00",
+                          "body": "Hi, the payroll export drops the overtime column. Can you fix it by Friday?", "participants": ["Riya Shah"],
+                          "meta": {"from_email": "riya@example.org", "_extraction": {"summary": "Riya reports the payroll export drops the overtime column and asks for a fix by Friday.",
+                                   "intent": "Report a bug", "importance": 4, "account": None,
+                                   "insights": [{"kind": "request", "text": "Fix the payroll export dropping the overtime column", "owner": None, "due": None}], "entities": []}}})
+    out = await pipeline.process_event("gmail:test-1")
+    kinds = [a["kind"] for a in actions.get_proposal(out["proposal_id"])["actions"]]
+    assert "jira.create_issue" in kinds and "slack.post_message" in kinds

@@ -774,16 +774,15 @@ a.tile:focus-visible {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .fly {
-    animation: none;
-    opacity: 0.7;
-  }
-  .wh.fresh,
-  .dots i,
-  .spin {
-    animation: none !important;
-  }
+/* Motion is an in-app preference (data-motion on <html>, default "on"), not the OS setting. */
+:root[data-motion="off"] .fly {
+  animation: none;
+  opacity: 0.7;
+}
+:root[data-motion="off"] .wh.fresh,
+:root[data-motion="off"] .dots i,
+:root[data-motion="off"] .spin {
+  animation: none !important;
 }
 
 /* rails stack */

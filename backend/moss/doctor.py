@@ -18,6 +18,11 @@ def show(state: str, name: str, message: str, hint: str = "") -> None:
         print(f"{'':7}{'':<12} → {hint}")
 
 
+def env_has_gemini_name() -> bool:
+    import os
+    return bool(os.getenv("GEMINI_API_KEY", "").strip())
+
+
 def short(e: Exception) -> str:
     return " ".join(str(e).split())[:200]
 
@@ -26,18 +31,29 @@ async def check_llm() -> None:
     if not settings.gemini_key:
         show("SKIP", "Gemini", "GEMINI_API_KEY not set; Moss runs offline (stored extractions, rule-based proposals)")
     else:
-        for label, model in (("chat", settings.gemini_model), ("fast", settings.gemini_fast_model)):
-            try:
-                out = await llm._gemini_call("Reply with the single word: ok", "", model, None)
-                show("OK", "Gemini", f"{label} model {model} answered: {out.strip()[:30]!r}")
-            except Exception as e:
-                hint = "Set GEMINI_MODEL / GEMINI_FAST_MODEL in .env to one of the models listed below."
-                show("FAIL", "Gemini", f"{label} model {model}: {short(e)}", hint)
+        if not env_has_gemini_name():
+            print(f"{'':20} note: using GOOGLE_API_KEY because GEMINI_API_KEY is not set")
+        working = []
+        for label, chain in (("chat", llm.model_chain()), ("fast", llm.model_chain(fast=True))):
+            for i, model in enumerate(chain):
                 try:
-                    names = [m.name.split("/")[-1] async for m in await llm._gemini().aio.models.list()]
-                    print(f"{'':20} models your key can use: {', '.join(n for n in names if 'flash' in n)[:400]}")
-                except Exception as e2:
-                    print(f"{'':20} could not list models: {short(e2)}")
+                    out = await llm._gemini_call("Reply with the single word: ok", "", model, None)
+                    note = "" if i == 0 else "  (fallback; the configured model failed)"
+                    show("OK", "Gemini", f"{label} model {model} answered: {out.strip()[:20]!r}{note}")
+                    working.append(model)
+                    break
+                except Exception as e:
+                    busy = any(code in str(e) for code in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"))
+                    hint = ("Temporary overload or quota. Moss tries the next model in GEMINI_FALLBACK_MODELS automatically."
+                            if busy else "Unknown model? Set it in .env to one of the models listed below.")
+                    show("FAIL", "Gemini", f"{label} model {model}: {short(e)[:120]}", hint)
+        if not working:
+            try:
+                names = [m.name.split("/")[-1] async for m in await llm._gemini().aio.models.list()]
+                flash = [n for n in names if "flash" in n and not any(x in n for x in ("image", "tts", "omni", "live", "audio"))]
+                print(f"{'':20} text models your key can use: {', '.join(flash)}")
+            except Exception as e2:
+                print(f"{'':20} could not list models: {short(e2)}")
     if llm.has_fallback():
         try:
             async with httpx.AsyncClient(timeout=10) as http:
@@ -78,16 +94,24 @@ async def check_atlassian() -> None:
     jira = LiveJira()
     try:
         me = await jira._call("GET", "/rest/api/3/myself")
-        proj = await jira._call("GET", f"/rest/api/3/project/{settings.jira_project}")
-        show("OK", "Jira", f"signed in as {me.get('displayName')}; project {proj.get('key')} “{proj.get('name')}” found")
+        found = (await jira._call("GET", "/rest/api/3/project/search")).get("values", [])
+        keys = {p.get("key"): p.get("name") for p in found}
+        if settings.jira_project in keys:
+            show("OK", "Jira", f"signed in as {me.get('displayName')}; project {settings.jira_project} “{keys[settings.jira_project]}” found")
+        else:
+            listing = ", ".join(f"{k} (“{n}”)" for k, n in keys.items()) or "none"
+            show("FAIL", "Jira", f"signed in as {me.get('displayName')}, but there is no project with key {settings.jira_project!r}; projects: {listing}",
+                 f"Either create a Jira project with key {settings.jira_project}, or set JIRA_PROJECT in .env to one of those keys.")
     except Exception as e:
-        show("FAIL", "Jira", short(e), "Check the three ATLASSIAN_* values and that JIRA_PROJECT is your project's key.")
+        show("FAIL", "Jira", short(e), "Check ATLASSIAN_SITE, ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN.")
     conf = LiveConfluence()
     try:
         data = await conf._call("GET", "/wiki/api/v2/spaces", params={"limit": 50})
         keys = [s.get("key") for s in data.get("results", [])]
-        if settings.confluence_space in keys:
-            show("OK", "Confluence", f"space {settings.confluence_space} found (all keys: {', '.join(keys)})")
+        keys = [k for k in keys if not str(k).startswith("~")]  # hide personal spaces
+        match = next((k for k in keys if str(k).casefold() == settings.confluence_space.casefold()), None)
+        if match:
+            show("OK", "Confluence", f"space {match} found (all keys: {', '.join(keys)})")
         else:
             show("FAIL", "Confluence", f"space key {settings.confluence_space!r} not found; keys you can see: {', '.join(keys) or 'none'}",
                  "Set CONFLUENCE_SPACE in .env to one of those keys (create a space first if the list is empty).")
@@ -122,7 +146,8 @@ async def check_slack() -> None:
             want = settings.slack_channel.lstrip("#")
             ok = want in names
             show("OK" if ok else "FAIL", "Slack", f"workspace {data.get('team')} as {data.get('user')}; bot is in: {', '.join(joined) or 'no channels'}",
-                 "" if ok else f"Channel #{want} (SLACK_DEFAULT_CHANNEL) does not exist; public channels: {', '.join(names[:12])}")
+                 "" if ok else f"Channel #{want} (SLACK_DEFAULT_CHANNEL) does not exist. Create a public channel named {want} in Slack "
+                               f"(and one named accounts), or set SLACK_DEFAULT_CHANNEL to one of: {', '.join(names[:12])}")
     except Exception as e:
         show("FAIL", "Slack", short(e))
 

@@ -33,7 +33,7 @@ export const TUNING = {
   windowSeconds: 2.5,
   parallax: { x: 0.6, y: 0.1 },
   sway: { x: 0.26, y: 0.05 },
-  /** Scene time shown by the still frame under prefers-reduced-motion. */
+  /** Scene time shown by the still frame when the in-app motion preference is off. */
   stillTime: 5.5,
 };
 
@@ -309,15 +309,44 @@ export function createGrove(container: HTMLElement, options: GroveOptions): Grov
     mouse.x = (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
     mouse.y = (e.clientY / Math.max(1, window.innerHeight)) * 2 - 1;
   };
+  // A lost context first gets a chance to come back (preventDefault allows the browser to restore it; three.js
+  // re-creates its GPU state on "webglcontextrestored"). Only if it stays lost does the caller fall back.
+  let lostTimer = 0;
   const onLost = (e: Event) => {
     e.preventDefault();
     stop();
-    if (!disposed) options.onContextLost?.();
+    if (disposed) return;
+    window.clearTimeout(lostTimer);
+    lostTimer = window.setTimeout(() => {
+      if (!disposed && renderer.getContext().isContextLost()) options.onContextLost?.();
+    }, 4000);
   };
+  const onRestored = () => {
+    window.clearTimeout(lostTimer);
+    if (disposed) return;
+    warm = 3;
+    acc = frames = slow = 0;
+    // three.js resets its own state in its listener; ours may run first, so resume on the next task
+    window.setTimeout(() => {
+      if (disposed) return;
+      resize();
+      if (reduced || document.hidden) renderStill();
+      start();
+    }, 0);
+  };
+  // Safety net: whatever paused the loop (a missed visibility event, a restored context, bfcache), it is
+  // started again within two seconds as long as motion is on and the page is visible. start() is a no-op otherwise.
+  const watchdog = window.setInterval(() => {
+    if (!raf && !disposed && !reduced && !document.hidden && !renderer.getContext().isContextLost()) start();
+  }, 2000);
+  const onShow = () => onVisibility();
   window.addEventListener("resize", onResize);
   document.addEventListener("visibilitychange", onVisibility);
   window.addEventListener("pointermove", onPointer, { passive: true });
   canvas.addEventListener("webglcontextlost", onLost);
+  canvas.addEventListener("webglcontextrestored", onRestored);
+  window.addEventListener("pageshow", onShow);
+  window.addEventListener("focus", onShow);
 
   // ---- go
   env.setQuality(level);
@@ -348,6 +377,11 @@ export function createGrove(container: HTMLElement, options: GroveOptions): Grov
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pointermove", onPointer);
       canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
+      window.removeEventListener("pageshow", onShow);
+      window.removeEventListener("focus", onShow);
+      window.clearInterval(watchdog);
+      window.clearTimeout(lostTimer);
       disposeTree(scene);
       glow.dispose();
       if (composer) {

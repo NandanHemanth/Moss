@@ -3,7 +3,7 @@
 // theme is on. If WebGL is missing, the context cannot be created, the chunk fails to load or the context
 // is lost later, the flat SVG scenery is shown instead.
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "../session";
+import { motionStore, useTheme } from "../session";
 import { Scenery } from "./Scenery";
 import type { GroveHandle, GroveInfo, GroveQuality } from "../grove";
 
@@ -65,15 +65,16 @@ function GroveScene({ showcase }: { showcase: boolean }) {
     let cancelled = false;
     let handle: GroveHandle | null = null;
     const root = document.documentElement;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotion = () => handle?.setReducedMotion(motion.matches);
+    // The in-app motion preference decides, not the OS "reduce motion" setting (see session.ts).
+    const onMotion = () => handle?.setReducedMotion(motionStore.get() === "off");
+    let unsubscribe: (() => void) | null = null;
     const debug = debugParams();
 
     import("../grove")
       .then(({ createGrove }) => {
         if (cancelled) return;
         handle = createGrove(el, {
-          reducedMotion: motion.matches,
+          reducedMotion: motionStore.get() === "off",
           showcase: showcaseRef.current,
           quality: debug.quality,
           startLevel: debug.startLevel,
@@ -87,7 +88,8 @@ function GroveScene({ showcase }: { showcase: boolean }) {
         });
         handleRef.current = handle;
         window.__mossGrove = import.meta.env.DEV ? { info: handle.info, scene: handle.scene } : { info: handle.info };
-        motion.addEventListener("change", onMotion);
+        unsubscribe = motionStore.subscribe(onMotion);
+        onMotion();
       })
       .catch((e) => {
         if (cancelled) return;
@@ -97,7 +99,7 @@ function GroveScene({ showcase }: { showcase: boolean }) {
 
     return () => {
       cancelled = true;
-      motion.removeEventListener("change", onMotion);
+      unsubscribe?.();
       handle?.dispose();
       handle = null;
       handleRef.current = null;

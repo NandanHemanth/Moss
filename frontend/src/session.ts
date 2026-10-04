@@ -1,4 +1,4 @@
-// Tiny persisted stores for the three per-browser choices: demo user, theme, voice.
+// Tiny persisted stores for the per-browser choices: demo user, theme, voice, motion.
 import { useSyncExternalStore } from "react";
 import { DEFAULT_USER } from "./config";
 
@@ -41,8 +41,18 @@ export const themeStore = persisted<Theme>("moss.theme", "light", (v) => v === "
 /** Voice defaults to OFF: browsers block audio until the user clicks something. */
 export const voicePrefStore = persisted<"on" | "off">("moss.voice", "off", (v) => v === "on" || v === "off");
 
+/** In-app motion preference. Defaults to ON for everyone and deliberately ignores the OS "reduce motion"
+ *  setting (Windows "Animation effects" off made the grove a still picture); the top-bar toggle turns it off. */
+export const motionStore = persisted<"on" | "off">("moss.motion", "on", (v) => v === "on" || v === "off");
+
 export const useUserId = () => useSyncExternalStore(userStore.subscribe, userStore.get);
 export const useTheme = () => useSyncExternalStore(themeStore.subscribe, themeStore.get);
+
+export const useMotion = () => useSyncExternalStore(motionStore.subscribe, motionStore.get);
+
+export function applyMotion(motion: "on" | "off") {
+  document.documentElement.dataset.motion = motion;
+}
 
 export function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;

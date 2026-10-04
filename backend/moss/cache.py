@@ -1,12 +1,14 @@
 """Memory layer 1 — in-process TTL cache for LLM answers, API reads and hot graph lookups."""
 import hashlib
 import json
+import time
 from typing import Any, Awaitable, Callable
 
 from cachetools import TTLCache
 
 _caches: dict[str, TTLCache] = {}
-stats = {"hits": 0, "misses": 0}
+stats = {"hits": 0, "misses": 0, "saved_ms": 0.0}
+_cost: dict[tuple[str, str], float] = {}
 
 
 def _ns(name: str, ttl: int, size: int = 512) -> TTLCache:
@@ -23,11 +25,14 @@ async def get_or_set(ns: str, key: str, ttl: int, fn: Callable[[], Awaitable[Any
     cache = _ns(ns, ttl)
     if key in cache:
         stats["hits"] += 1
+        stats["saved_ms"] += _cost.get((ns, key), 0.0)
         return cache[key]
     stats["misses"] += 1
+    started = time.perf_counter()
     value = await fn()
     if value is not None:
         cache[key] = value
+        _cost[(ns, key)] = (time.perf_counter() - started) * 1000
     return value
 
 
@@ -38,4 +43,4 @@ def invalidate(ns: str | None = None) -> None:
 
 
 def snapshot() -> dict:
-    return {**stats, "namespaces": {n: len(c) for n, c in _caches.items()}}
+    return {**stats, "saved_ms": round(stats["saved_ms"]), "namespaces": {n: len(c) for n, c in _caches.items()}}

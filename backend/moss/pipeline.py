@@ -16,7 +16,9 @@ log = logging.getLogger("moss.pipeline")
 EXTRACT_SYSTEM = """You are {agent}, a Moss agent that reads {source} content for a company.
 Extract only what is explicitly stated. Never invent owners, dates, customers or decisions.
 A commitment is something a named person agreed to do. A decision is something the group settled.
-A risk is a stated blocker or danger. Dates are ISO (YYYY-MM-DD); today is {today}."""
+A risk is a stated blocker or danger. A request is something the sender asks us to do (owner = who should do it, if named).
+importance: 4-5 when someone asks us for something, reports a problem, or a decision or deadline is stated;
+3 for useful status; 1-2 for newsletters, receipts, automated notifications and small talk. Dates are ISO (YYYY-MM-DD); today is {today}."""
 
 PROPOSE_SYSTEM = """You are Stag, the orchestrator of Moss. A new event was just understood by another agent.
 Propose between 0 and 4 concrete next actions for the manager to approve. Rules:
@@ -24,6 +26,13 @@ Propose between 0 and 4 concrete next actions for the manager to approve. Rules:
 - Allowed kinds: jira.create_issue (summary, description, assignee), slack.post_message (channel, text),
   calendar.create_event (title, start ISO datetime, duration_minutes, attendees, description),
   gmail.create_draft (to, subject, body), confluence.create_page (title, body).
+- For an email or message that asks for something: a Jira ticket for the work, a Slack message telling the team, and
+  optionally a gmail.create_draft reply to the sender acknowledging it. Reply drafts go to the sender's address.
+- After a meeting with decisions, the usual set is: one Jira ticket for the main piece of work (at most two tickets),
+  one Slack message summarising decisions and owners, and one follow-up calendar event when people agreed to meet or
+  review again, or a risk is still open.
+- Jira summaries are plain titles: never include a ticket key such as PLAT-12, Jira assigns it.
+- Use people's full names as given under People. Slack channel names have no leading #.
 - Do not propose something the related context shows already exists.
 - Default Slack channel is #{channel}. Jira project is {project}. Today is {today}; schedule follow-ups on a weekday.
 - notification: one or two plain sentences for the manager, no greeting.
@@ -57,7 +66,7 @@ async def extract(event: dict, prefer_stored: bool = False) -> Extraction:
 def _rule_based(event: dict, ex: Extraction) -> Proposal:
     """Offline proposer: predictable, used when no LLM is reachable."""
     acts, people = [], [p for p in (event.get("participants") or []) if p]
-    decisions = [i for i in ex.insights if i.kind == "decision"]
+    decisions = [i for i in ex.insights if i.kind in ("decision", "request")]
     commits = [i for i in ex.insights if i.kind == "commitment"]
     risks = [i for i in ex.insights if i.kind == "risk"]
     for d in decisions[:1]:
@@ -93,7 +102,8 @@ async def propose(event: dict, ex: Extraction) -> Proposal:
     open_c = db.q("SELECT text, owner, due FROM commitments WHERE status='open' AND (account=? OR ? IS NULL) LIMIT 10",
                   (ex.account, ex.account))
     prompt = (f"EVENT ({event['source']}): {event['title']} on {event['occurred_at'][:10]}\n"
-              f"People: {', '.join(event.get('participants') or [])}\nSummary: {ex.summary}\nIntent: {ex.intent}\n"
+              f"People: {', '.join(event.get('participants') or [])}\n"
+              f"Sender address: {(event.get('meta') or {}).get('from_email') or 'n/a'}\nSummary: {ex.summary}\nIntent: {ex.intent}\n"
               "Insights:\n" + "\n".join(f"- {i.kind}: {i.text} (owner {i.owner or '?'}, due {i.due or '?'})" for i in ex.insights)
               + "\n\nRELATED CONTEXT FROM THE KNOWLEDGE GRAPH:\n" + ("\n".join(f"- {r['fact']}" for r in related) or "- none")
               + "\n\nOPEN COMMITMENTS:\n" + ("\n".join(f"- {c['owner']}: {c['text']} (due {c['due']})" for c in open_c) or "- none"))
@@ -149,11 +159,11 @@ async def process_event(event_id: str, historical: bool = False, wait_graph: boo
     if historical:
         return result
     notify.publish("timeline", {"id": event_id})
-    if ex.importance >= 3 and ex.insights:
+    if ex.importance >= 3 and (ex.insights or event["source"] in ("gmail", "slack")):
         prop = await propose(event, ex)
         saved = actions.add_proposal(event_id, [a.model_dump() if hasattr(a, "model_dump") else a for a in prop.actions])
         result["proposal_id"] = saved["id"] if saved else None
         notify.notify(event["agent_id"], prop.notification, event_id)
-    elif ex.importance >= 3:
+    elif ex.importance >= 4:
         notify.notify(event["agent_id"], f"{event['title']}: {ex.summary}", event_id)
     return result

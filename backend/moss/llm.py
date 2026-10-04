@@ -6,6 +6,7 @@ seeded events and a rule-based proposer, so the demo still runs with no key and 
 import json
 import logging
 import re
+import time
 from typing import TypeVar
 
 import httpx
@@ -18,6 +19,32 @@ log = logging.getLogger("moss.llm")
 T = TypeVar("T", bound=BaseModel)
 state = {"last_route": None, "gemini_errors": 0, "fallback_errors": 0, "last_error": None}
 _client = None
+_cooldown: dict[str, float] = {}   # model -> time until which it is skipped after failing
+COOLDOWN_SECONDS = 120
+
+
+def model_chain(fast: bool = False) -> list[str]:
+    """Gemini models to try, in order: the configured one, then GEMINI_FALLBACK_MODELS. Recently failed ones go last."""
+    first = settings.gemini_fast_model if fast else settings.gemini_model
+    chain = list(dict.fromkeys([first, *settings.gemini_fallback_models]))
+    now = time.monotonic()
+    return sorted(chain, key=lambda m: _cooldown.get(m, 0) > now)
+
+
+def mark_down(model: str, error: Exception | str) -> None:
+    """Skip a failing model for a while: as long as the API asks for on a rate limit, longer if the model is gone."""
+    text = str(error)
+    wait = COOLDOWN_SECONDS
+    asked = re.search(r"retry in ([\d.]+)s", text)
+    if asked:
+        wait = float(asked.group(1)) + 2
+    elif "429" in text or "RESOURCE_EXHAUSTED" in text:
+        wait = 60
+    elif "404" in text or "NOT_FOUND" in text:
+        wait = 3600
+    _cooldown[model] = time.monotonic() + wait
+    state["gemini_errors"] += 1
+    state["last_error"] = f"gemini {model}: {error}"[:300]
 
 
 class LLMUnavailable(Exception):
@@ -80,15 +107,14 @@ def _parse(text: str, schema: type[T]) -> T:
 
 async def _route(prompt: str, system: str, schema: type[BaseModel] | None, fast: bool) -> str:
     if settings.gemini_key:
-        try:
-            model = settings.gemini_fast_model if fast else settings.gemini_model
-            out = await _gemini_call(prompt, system, model, schema)
-            state["last_route"] = f"gemini:{model}"
-            return out
-        except Exception as e:  # quota, network, bad model name
-            state["gemini_errors"] += 1
-            state["last_error"] = f"gemini: {e}"[:300]
-            log.warning("Gemini failed, trying fallback: %s", e)
+        for model in model_chain(fast):
+            try:
+                out = await _gemini_call(prompt, system, model, schema)
+                state["last_route"] = f"gemini:{model}"
+                return out
+            except Exception as e:  # overloaded, quota, network, unknown model: try the next one
+                mark_down(model, e)
+                log.warning("Gemini model %s failed, trying next: %s", model, str(e)[:160])
     if has_fallback():
         try:
             out = await _fallback_call(prompt, system, schema)
@@ -118,4 +144,5 @@ async def generate_text(prompt: str, system: str = "") -> str:
 def snapshot() -> dict:
     return {"mode": mode(), "primary": settings.gemini_model if settings.gemini_key else None,
             "fast": settings.gemini_fast_model if settings.gemini_key else None,
-            "fallback": settings.fallback_model if has_fallback() else None, **state}
+            "fallback": settings.fallback_model if has_fallback() else None,
+            "gemini_chain": model_chain() if settings.gemini_key else [], **state}

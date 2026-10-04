@@ -8,6 +8,7 @@ import { LiveContext, Shell } from "./components/Shell";
 import { AskPage } from "./pages/Ask";
 import { ClearingPage } from "./pages/Clearing";
 import { GraphPage } from "./pages/Graph";
+import { MemoryPage } from "./pages/Memory";
 import { TimelinePage } from "./pages/Timeline";
 import { accessControlProvider } from "./providers/accessControlProvider";
 import { authProvider } from "./providers/authProvider";
@@ -68,6 +69,7 @@ function MossForUser({ userId }: { userId: string }) {
             <Route path="ask" element={<AskPage />} />
             <Route path="timeline" element={<TimelinePage />} />
             <Route path="graph" element={<GraphPage />} />
+            <Route path="memory" element={<MemoryPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

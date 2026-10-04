@@ -1,5 +1,5 @@
 // Forest silhouette, mushrooms, a stag and fireflies. Only shown in the dark "Enchanted grove" theme
-// (CSS), and the fireflies stop moving under prefers-reduced-motion.
+// (CSS), and the fireflies stop moving when the in-app motion preference is off.
 const FLIES: Array<{ left: string; bottom: number; delay?: string }> = [
   { left: "12%", bottom: 150 },
   { left: "31%", bottom: 90, delay: "-2s" },

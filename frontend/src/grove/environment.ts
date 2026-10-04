@@ -778,7 +778,7 @@ function buildGrass(rng: Rng, time: { value: number }): { mesh: THREE.InstancedM
   return { mesh, count: made };
 }
 
-function buildFerns(rng: Rng): THREE.InstancedMesh {
+function buildFerns(rng: Rng, time: { value: number }): THREE.InstancedMesh {
   const parts: THREE.BufferGeometry[] = [];
   const fronds = 12;
   const dark = new THREE.Color("#173a22");
@@ -813,6 +813,22 @@ function buildFerns(rng: Rng): THREE.InstancedMesh {
   const geo = mergeGeometries(parts);
   parts.forEach((p) => p.dispose());
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  // wind: the fronds nod, more towards their tips (one sine pair in the vertex shader, no extra draw calls)
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = time;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uTime;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          float fph = instanceMatrix[3].x * 1.7 + instanceMatrix[3].z * 2.3;
+          float reach = clamp(length(position.xz) * 1.4, 0.0, 1.0);
+          transformed.y += sin(uTime * 1.05 + fph + reach * 1.5) * 0.045 * reach;
+          transformed.x += sin(uTime * 0.8 + fph * 1.3) * 0.03 * reach;
+        #endif`,
+      );
+  };
   const lanes = keepClear().filter((p) => p.y < 0.5);
   const spots: Array<[number, number, number]> = [
     // big dark fronds right in front of the lens, in the bottom corners
@@ -1137,14 +1153,18 @@ export function glowPoints(
         p.x += sin(t * (0.5 + aSeed.x) + aSeed.y * 6.283) * uAmp.x * (0.4 + aSeed.z) + sin(t * 0.23 * (1.0 + aSeed.w) + aSeed.x * 9.0) * uAmp.x * 0.6;
         p.y += sin(t * (0.6 + aSeed.z) + aSeed.x * 6.283) * uAmp.y * (0.4 + aSeed.w);
         p.z += cos(t * (0.45 + aSeed.y) + aSeed.w * 6.283) * uAmp.z * (0.4 + aSeed.x);
-        p.y += mod(uTime * uRise * (0.5 + aSeed.y) + aSeed.z * 7.0, 7.0) * step(0.0001, uRise);
+        // rising motes wrap every 7 units of height; they fade out before the wrap and back in after it
+        float rise = mod(uTime * uRise * (0.5 + aSeed.y) + aSeed.z * 7.0, 7.0);
+        float rising = step(0.0001, uRise);
+        p.y += rise * rising;
+        float riseFade = mix(1.0, smoothstep(0.0, 0.9, rise) * (1.0 - smoothstep(6.1, 7.0, rise)), rising);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
         float dist = -mv.z;
         float px = aSize * uScale / max(dist, 0.5);
         float blink = mix(1.0, smoothstep(0.15, 0.85, 0.5 + 0.5 * sin(uTime * (0.7 + aSeed.w * 1.6) + aSeed.x * 40.0)), uBlink);
         // very small sprites keep a minimum size and fade instead, so they never flicker
-        vA = blink * exp(-uFogDensity * uFogDensity * dist * dist) * clamp(px / 3.0, 0.25, 1.0);
+        vA = blink * riseFade * exp(-uFogDensity * uFogDensity * dist * dist) * clamp(px / 3.0, 0.25, 1.0);
         vColor = aColor;
         gl_PointSize = clamp(px, 3.0, 96.0);
       }`,
@@ -1189,7 +1209,7 @@ export function buildEnvironment(seed: number, time: { value: number }): Environ
   group.add(trees.group);
   group.add(buildStones(rng), buildLogAndSnag(trees.bark));
   const grass = buildGrass(rng, time);
-  group.add(grass.mesh, buildFerns(rng));
+  group.add(grass.mesh, buildFerns(rng, time));
   const shrooms = buildMushrooms(rng, time, glow, trees.trees);
   const shafts = buildShafts(rng, time, glow);
   group.add(shrooms.group, buildPond(time), shafts);

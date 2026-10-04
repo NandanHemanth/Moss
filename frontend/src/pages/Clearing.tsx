@@ -13,7 +13,7 @@ import { TOOL_AGENT } from "../lib/agents";
 import { MOSS_QUERY_KEY, useAllowed, useIdentity, useMossList, useMossQuery, useRole } from "../hooks/useMoss";
 import { firstName, formatDay, formatTime, greeting, isToday, parseDate, plural } from "../lib/format";
 import { errorMessage } from "../providers/http";
-import type { DemoQueueItem, MeetingEndedResult, MossEvent, Proposal, SyncResult, User } from "../types";
+import type { DemoQueueItem, MeetingEndedResult, MossEvent, Proposal, Status, SyncResult, User } from "../types";
 
 export function ClearingPage() {
   const role = useRole();
@@ -99,6 +99,9 @@ function DemoControls() {
   const queryClient = useQueryClient();
   const invalidate = useInvalidate();
   const queue = useMossQuery<DemoQueueItem[]>("demo-queue", "/api/demo/queue", { enabled: canDemo });
+  // same query key as the sidebar status strip, so this shares its request and its refreshes
+  const status = useMossQuery<Status>("status", "/api/status", { enabled: canSync });
+  const backlog = Number(status.data?.backlog) || 0;
   const { mutateAsync: postMeeting } = useCustomMutation<MeetingEndedResult, HttpError, Record<string, never>>();
   const { mutateAsync: postSync } = useCustomMutation<SyncResult, HttpError, Record<string, never>>();
   const [busy, setBusy] = useState<"meeting" | "sync" | null>(null);
@@ -185,7 +188,7 @@ function DemoControls() {
           {busy === "meeting" ? "Reading the transcript…" : "A meeting just ended"}
         </button>
         <button className="btn big" onClick={sync} disabled={busy !== null} title="Pull new items from the live connectors" data-testid="sync">
-          {busy === "sync" ? "Syncing…" : "Sync"}
+          {busy === "sync" ? "Syncing…" : backlog > 0 ? `Sync (${backlog} waiting)` : "Sync"}
         </button>
       </div>
       {note?.tone === "sync" ? (

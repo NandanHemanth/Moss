@@ -20,7 +20,8 @@ const SOURCE_NOUN: Record<string, string> = {
 
 function InsightChip({ insight }: { insight: Insight }) {
   const kind = insight.kind || "note";
-  const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+  // decision / commitment / request share the plain chip; only risks are tinted
+  const label = kind === "request" ? "Request" : kind.charAt(0).toUpperCase() + kind.slice(1);
   const extras: string[] = [];
   if (insight.owner) extras.push(firstName(insight.owner));
   if (insight.due) extras.push(`due ${formatDue(insight.due).label}`);

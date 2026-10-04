@@ -10,7 +10,7 @@ import { compactMode, modeTone } from "../lib/agents";
 import { firstName } from "../lib/format";
 import { MOSS_CHANNEL, type MossLiveProvider, type StreamState } from "../providers/liveProvider";
 import { errorMessage } from "../providers/http";
-import { applyTheme, themeStore, useTheme, useUserId } from "../session";
+import { applyMotion, applyTheme, motionStore, themeStore, useMotion, useTheme, useUserId } from "../session";
 import type { Agent, Status, User, Whisper } from "../types";
 import { AgentAvatar, AgentsProvider } from "./AgentAvatar";
 import { GroveBackdrop } from "./GroveBackdrop";
@@ -133,6 +133,25 @@ function ThemeToggle() {
   );
 }
 
+/** In-app motion preference (default on; it deliberately overrides the OS "reduce motion" setting). */
+function MotionToggle() {
+  const motion = useMotion();
+  const on = motion === "on";
+  return (
+    <button
+      type="button"
+      className="tog motion-toggle"
+      aria-pressed={on}
+      title={on ? "Stop the grove's animation and the panel fades" : "Animate the grove and the panel fades"}
+      onClick={() => motionStore.set(on ? "off" : "on")}
+      data-testid="motion-toggle"
+    >
+      <span aria-hidden="true">{on ? "🍃 " : "⏸ "}</span>
+      {on ? "Motion on" : "Motion off"}
+    </button>
+  );
+}
+
 function AgentRow({ agent }: { agent: Agent }) {
   const allowed = useAllowed("agents", "ask", { id: agent.id, manager_only: agent.manager_only }) && agent.allowed;
   const body = (tag: ReactNode) => (
@@ -165,6 +184,14 @@ function AgentRow({ agent }: { agent: Agent }) {
   );
 }
 
+function watchTitle(watch: Status["watch"]): string | undefined {
+  if (!watch?.enabled) return "The background watcher only runs when at least one tool is connected live";
+  const errors = Object.entries(watch.errors ?? {});
+  return [`${watch.runs ?? 0} runs`, watch.last_run ? `last run ${watch.last_run}` : null, `${watch.last_new ?? 0} new last time`, ...errors.map(([tool, msg]) => `${tool}: ${msg}`)]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function StatusStrip() {
   const { data: status, error } = useMossQuery<Status>("status", "/api/status");
   const stream = useStreamState();
@@ -190,6 +217,18 @@ function StatusStrip() {
           <dt>Voice</dt>
           <dd>{status.voice}</dd>
         </dl>
+      ) : null}
+      {status ? (
+        <div className="watch" data-testid="watch-status" title={watchTitle(status.watch)}>
+          {status.watch?.enabled ? (
+            <>
+              Watching {status.watch.watching?.length ? status.watch.watching.join(", ") : "live tools"} · every {status.watch.every_seconds} s
+              <span className="watch-count"> · {status.watch.triggered ?? 0} triggered</span>
+            </>
+          ) : (
+            "Watch idle (no live tools)"
+          )}
+        </div>
       ) : (
         <div>{error ? "Status unavailable" : "Loading status…"}</div>
       )}
@@ -217,6 +256,9 @@ function Sidebar({ agents, loading }: { agents: Agent[]; loading: boolean }) {
         </NavLink>
         <NavLink to="/graph" className={({ isActive }) => (isActive ? "on" : "")}>
           Graph
+        </NavLink>
+        <NavLink to="/memory" className={({ isActive }) => (isActive ? "on" : "")}>
+          Memory
         </NavLink>
       </nav>
       <div className="lbl">Agents</div>
@@ -254,6 +296,8 @@ export function Shell() {
   }, [showing]);
 
   useEffect(() => applyTheme(theme), [theme]);
+  const motion = useMotion();
+  useEffect(() => applyMotion(motion), [motion]);
   useEffect(() => {
     document.title = role === "employee" ? "Moss · My work" : "Moss";
   }, [role]);
@@ -288,7 +332,8 @@ export function Shell() {
               {showing ? "Back to Moss" : "View the grove"}
             </button>
           ) : null}
-          {canVoice ? <VoiceToggle /> : null}
+          {theme === "dark" ? <MotionToggle /> : null}
+          {canVoice ? <VoiceToggle compact={theme === "dark"} /> : null}
         </header>
 
         <div className="frame A" inert={showing}>

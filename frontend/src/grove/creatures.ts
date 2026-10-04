@@ -267,6 +267,10 @@ function buildStag(glow: THREE.Texture): Creature {
       head.rotation.y = lookYaw * 0.5;
       head.rotation.x = lerp(0.12, 0.2, pauseBlend) + Math.sin(phase * 2 + 1.4) * 0.02 * gait;
       tail.rotation.x = Math.sin(t * 3.1) * 0.12 * (0.3 + 0.7 * pauseBlend);
+      // idle loops that never stop: breathing, and now and then a quick ear-and-head twitch
+      const breath = Math.sin(t * 1.5) * 0.012;
+      body.scale.set(1 + breath, 1 + breath * 0.6, 1);
+      head.rotation.z = Math.pow(Math.max(0, Math.sin(t * 0.37 + 1.1)), 40) * Math.sin(t * 19) * 0.09;
       antlerMat.color.setRGB(2.5, 2.25, 1.6).multiplyScalar(0.85 + 0.15 * Math.sin(t * 0.9));
       focus.copy(root.position).setY(root.position.y + 1.35 * SCALE);
     },
@@ -426,6 +430,10 @@ function buildFox(glow: THREE.Texture): Creature {
       neck.rotation.y = lookYaw * 0.55;
       head.rotation.y = lookYaw * 0.45;
       head.rotation.x = 0.1 - 0.05 * s;
+      // idle loops: breathing (stronger while sitting) and an occasional ear-and-head twitch
+      const breath = Math.sin(t * 2.1) * (0.01 + 0.012 * s);
+      front.scale.set(1 + breath, 1 + breath, 1);
+      head.rotation.z = Math.pow(Math.max(0, Math.sin(t * 0.53 + 0.4)), 30) * Math.sin(t * 23) * 0.12;
       // the brush streams behind at a trot and curls round the paws when sitting
       tail.rotation.x = -0.1 + 0.3 * s + Math.sin(phase * 2) * 0.05 * gait;
       tail.rotation.y = Math.sin(phase + 0.6) * 0.13 * gait + 0.75 * s + Math.sin(t * 1.3) * 0.06 * s;
@@ -574,6 +582,7 @@ function buildTortoise(glow: THREE.Texture): Creature {
       neck.rotation.x = -0.05 - 0.28 * looking + Math.sin(phase * 2) * 0.03 * gait;
       neck.rotation.y = Math.sin(phase) * 0.07 * gait + Math.sin(t * 0.6) * 0.5 * looking;
       tail.rotation.y = Math.sin(phase) * 0.3 * gait;
+      body.scale.y = 1 + Math.sin(t * 0.9) * 0.012; // slow breathing under the shell
       shellMat.emissiveIntensity = 1.05 + 0.4 * Math.sin(t * 0.8);
       focus.copy(root.position).setY(root.position.y + 0.25 * SCALE);
     },
@@ -658,10 +667,13 @@ interface BirdRig {
   head: THREE.Group;
   wings: Array<{ side: number; inner: THREE.Group; outer: THREE.Group }>;
   tail: THREE.Object3D;
+  /** The owl's glowing eyes (squashed for a blink). */
+  eyes: THREE.Mesh | null;
 }
 
 function birdRig(kind: "owl" | "raven", scale: number): BirdRig {
   const owl = kind === "owl";
+  let eyes_: THREE.Mesh | null = null;
   const root = new THREE.Group();
   root.rotation.order = "YXZ";
   const rig = new THREE.Group();
@@ -708,7 +720,7 @@ function birdRig(kind: "owl" | "raven", scale: number): BirdRig {
     }
     mesh(head, mergeGeometries(parts), mat);
     const eyes = [1, -1].map((s) => new THREE.SphereGeometry(0.027, 10, 8).translate(s * 0.053, 0.012, 0.102));
-    mesh(head, mergeGeometries(eyes), bright("#ffc44a", 2.3));
+    eyes_ = mesh(head, mergeGeometries(eyes), bright("#ffc44a", 2.3));
     const pupils = [1, -1].map((s) => new THREE.SphereGeometry(0.013, 8, 6).translate(s * 0.053, 0.012, 0.124));
     const beak = new THREE.ConeGeometry(0.016, 0.045, 6);
     beak.rotateX(2.6);
@@ -746,7 +758,7 @@ function birdRig(kind: "owl" | "raven", scale: number): BirdRig {
     const feet = mergeGeometries([1, -1].map((s) => new THREE.SphereGeometry(0.022, 6, 5).translate(s * 0.045, -0.105, -0.12)));
     mesh(tilt, feet, new THREE.MeshBasicMaterial({ color: col("#caa15a").multiplyScalar(0.8) }));
   }
-  return { root, tilt, head, wings, tail };
+  return { root, tilt, head, wings, tail, eyes: eyes_ };
 }
 
 /** Wing pose: `flap` -1..1 through the beat, `fold` 0 (spread) .. 1 (closed against the body). */
@@ -833,7 +845,11 @@ function buildOwl(): Creature {
       const toCam = wrap(Math.atan2(camera.x - rig.root.position.x, camera.z - rig.root.position.z) - heading);
       headYaw = damp(headYaw, (clamp(toCam, -1.4, 1.4) + Math.sin(t * 0.8) * 0.45) * f, 2.2, dt);
       // default XYZ order: the yaw happens in the head's own (already levelled) frame
-      rig.head.rotation.set(1.04 * upright, headYaw, 0);
+      rig.head.rotation.set(1.04 * upright, headYaw, Math.sin(t * 0.31 + 2.0) * 0.16 * f);
+      // perched idle: slow breathing, and a blink every few seconds (also in flight, it is cheap)
+      const puff = 1 + Math.sin(t * 1.3) * 0.02 * f;
+      rig.tilt.scale.set(puff, 1, puff);
+      if (rig.eyes) rig.eyes.scale.y = 1 - 0.92 * Math.pow(Math.max(0, Math.sin(t * 0.85 + 0.6)), 60);
       focus.copy(rig.root.position);
     },
   };

@@ -1,6 +1,9 @@
 """HTTP API for the Moss frontend. Roles are enforced here, not in the UI."""
 import asyncio
 import logging
+import time
+from collections import Counter
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -15,11 +18,60 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 log = logging.getLogger("moss.api")
 
 
+AUTO_TOOLS = ("gmail", "slack", "jira", "confluence")   # calendar is pulled on Sync only: future events are not "news"
+POLL = {"enabled": False, "every_seconds": settings.poll_seconds, "runs": 0, "last_run": None, "last_new": 0,
+        "triggered": 0, "errors": {}, "watching": []}
+STARTED_LOCAL = (datetime.now() - timedelta(minutes=2)).isoformat(timespec="seconds")
+
+
+async def _pull(tools) -> tuple[list[str], dict]:
+    """Fetch from connectors and store anything new. Returns (new event ids, errors by tool)."""
+    new, errors = [], {}
+    for tool in tools:
+        try:
+            for ev in await connectors.get(tool).fetch_events():
+                if pipeline.store_event(ev, dedupe=True):
+                    new.append(ev["id"])
+        except Exception as e:
+            errors[tool] = " ".join(str(e).split())[:220]
+    return new, errors
+
+
+async def _poll_loop():
+    """Watch live tools. Items that arrived after the server started run through the pipeline at once, so an incoming
+    email or Slack message produces proposals for the manager without anyone clicking Sync. Older items wait for Sync."""
+    await asyncio.sleep(4)
+    while True:
+        try:
+            live = [t for t in AUTO_TOOLS if connectors.get(t).mode == "live"]
+            POLL.update(enabled=bool(live), watching=live)
+            if live:
+                new, errors = await _pull(live)
+                marks = ",".join("?" * len(AUTO_TOOLS))
+                fresh = db.q(f"SELECT id FROM events WHERE processed=0 AND occurred_at>=? AND source IN ({marks}) "
+                             "ORDER BY occurred_at LIMIT 3", (STARTED_LOCAL, *AUTO_TOOLS))
+                for row in fresh:
+                    await pipeline.process_event(row["id"])
+                POLL.update(runs=POLL["runs"] + 1, last_run=db.now(), last_new=len(new), errors=errors,
+                            triggered=POLL["triggered"] + len(fresh))
+                if new:
+                    notify.publish("timeline", {"new": len(new)})
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # never let the watcher die
+            POLL["errors"] = {"poller": str(e)[:200]}
+            log.warning("poll failed: %s", e)
+        await asyncio.sleep(max(settings.poll_seconds, 10))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     if not db.one("SELECT id FROM users LIMIT 1"):
         await seed.load()
+    task = asyncio.create_task(_poll_loop()) if settings.poll_seconds > 0 else None
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title="Moss", version="0.1.0", lifespan=lifespan)
@@ -71,7 +123,7 @@ def status(_: dict = Depends(current_user)):
     return {"llm": llm.snapshot(), "graph": graph.snapshot(), "cache": cache.snapshot(), "connectors": connectors.modes(),
             "voice": "elevenlabs" if settings.elevenlabs_key else "browser",
             "counts": {t: count(t) for t in ("events", "facts", "commitments", "proposals", "notifications")},
-            "backlog": db.one("SELECT count(*) AS n FROM events WHERE processed=0")["n"]}
+            "backlog": db.one("SELECT count(*) AS n FROM events WHERE processed=0")["n"], "watch": POLL}
 
 
 # ------------------------------------------------------------------ proposals + actions
@@ -220,6 +272,95 @@ async def ask(body: Ask, user: dict = Depends(current_user)):
     return await agents.ask(body.agent_id, body.message, user, body.session_id)
 
 
+# ------------------------------------------------------------------ memory: what each layer is for, with live numbers
+@app.get("/api/memory")
+def memory(user: dict = Depends(current_user)):
+    visible = agents.visible_event_ids(user)
+    facts = [f for f in db.q("SELECT f.object_type, f.account, f.event_id, e.source FROM facts f LEFT JOIN events e ON e.id=f.event_id")
+             if visible is None or f["event_id"] in visible]
+    per_account: dict[str, dict] = {}
+    for f in facts:
+        if f["account"]:
+            a = per_account.setdefault(f["account"], {"account": f["account"], "tools": set(), "facts": 0})
+            a["facts"] += 1
+            if f["source"]:
+                a["tools"].add(f["source"])
+    cross = sorted(({**a, "tools": sorted(a["tools"])} for a in per_account.values()), key=lambda a: (-len(a["tools"]), -a["facts"]))
+    count = lambda t: db.one(f"SELECT count(*) AS n FROM {t}")["n"]  # noqa: E731
+    decided = {r["status"]: r["n"] for r in db.q("SELECT status, count(*) AS n FROM actions GROUP BY status")}
+    audit = db.q("SELECT ts, user_id, action, detail FROM audit ORDER BY ts DESC LIMIT 8") if user["role"] == "manager" else []
+    return {
+        "cache": cache.snapshot(),
+        "graph": {**graph.snapshot(), "facts": len(facts), "by_type": dict(Counter(f["object_type"] for f in facts)),
+                  "by_tool": dict(Counter(f["source"] or "moss" for f in facts)), "cross_tool": cross[:6]},
+        "store": {"tables": {t: count(t) for t in ("events", "insights", "commitments", "proposals", "actions", "notifications", "audit")},
+                  "decisions": decided, "recent_audit": audit},
+        "llm": llm.snapshot(),
+    }
+
+
+class Compare(BaseModel):
+    question: str
+    with_llm: bool = False
+
+
+@app.post("/api/memory/compare")
+async def memory_compare(body: Compare, user: dict = Depends(current_user)):
+    """Answer one question three ways so the value of each memory layer is measurable."""
+    visible = agents.visible_event_ids(user)
+    q = body.question.strip()
+    words = [w for w in graph._tokens(q)]
+
+    # 0. No memory: hand the model every raw document that mentions a keyword.
+    t = time.perf_counter()
+    docs = [e for e in db.q("SELECT id, source, title, body FROM events") if (visible is None or e["id"] in visible)
+            and any(w in f"{e['title']} {e['body']}".lower() for w in words)]
+    raw = {"documents": len(docs), "chars": sum(len(d["title"]) + len(d["body"]) for d in docs),
+           "ms": round((time.perf_counter() - t) * 1000, 2), "sample": [d["title"] for d in docs[:5]],
+           "tools": sorted({d["source"] for d in docs})}
+    raw["tokens"] = raw["chars"] // 4
+
+    # 2. Knowledge graph, cold (cache cleared), then 1. the same lookup again through the cache.
+    cache.invalidate("graph")
+    t = time.perf_counter()
+    facts = await graph.search(q, limit=12, event_ids=visible)
+    cold = (time.perf_counter() - t) * 1000
+    t = time.perf_counter()
+    await graph.search(q, limit=12, event_ids=visible)
+    warm = (time.perf_counter() - t) * 1000
+    g = {"facts": len(facts), "chars": sum(len(f["fact"]) for f in facts), "ms": round(cold, 2),
+         "tools": sorted({f["event_source"] for f in facts if f.get("event_source")}),
+         "sample": [{"fact": f["fact"], "date": (f["valid_at"] or "")[:10], "source": f.get("event_title")} for f in facts[:6]]}
+    g["tokens"] = g["chars"] // 4
+    c = {"cold_ms": round(cold, 2), "warm_ms": round(warm, 3), "speedup": round(cold / warm, 1) if warm > 0 else None}
+
+    # LLM answer from graph facts, twice: the second call is served by the cache.
+    answer = None
+    if body.with_llm and llm.mode() != "offline" and facts:
+        prompt = ("Answer the question in two sentences using only these facts.\nQuestion: " + q + "\nFacts:\n"
+                  + "\n".join(f"- {f['fact']} ({(f['valid_at'] or '')[:10]})" for f in facts))
+        try:
+            t = time.perf_counter()
+            text = await llm.generate_text(prompt)
+            first = (time.perf_counter() - t) * 1000
+            t = time.perf_counter()
+            await llm.generate_text(prompt)
+            second = (time.perf_counter() - t) * 1000
+            answer = {"text": text, "first_ms": round(first), "repeat_ms": round(second, 2), "route": llm.state["last_route"]}
+        except Exception as e:
+            answer = {"error": str(e)[:160]}
+
+    # 3. SQLite: exact state and accountability the graph does not hold.
+    accounts = {f["account"] for f in facts if f.get("account")}
+    commits = [r for r in db.q("SELECT text, owner, due, account, status FROM commitments WHERE status='open' ORDER BY due IS NULL, due")
+               if r["account"] in accounts and (user["role"] == "manager" or _first(user) in (r["owner"] or "").lower())]
+    store = {"open_commitments": commits[:5],
+             "approved_actions": db.one("SELECT count(*) AS n FROM actions WHERE status='executed'")["n"],
+             "audit_entries": db.one("SELECT count(*) AS n FROM audit")["n"]}
+    saving = round(100 * (1 - g["tokens"] / raw["tokens"])) if raw["tokens"] else 0
+    return {"question": q, "raw": raw, "graph": g, "cache": c, "store": store, "llm_answer": answer, "context_saving_percent": saving}
+
+
 # ------------------------------------------------------------------ ingest
 @app.get("/api/demo/queue")
 def demo_queue(_: dict = Depends(manager)):
@@ -266,14 +407,7 @@ SYNC_BATCH = 5  # events understood per click, to stay inside free LLM quotas
 @app.post("/api/sync")
 async def sync(user: dict = Depends(manager)):
     """Pull new items from every live connector, then run the oldest-waiting items through the pipeline."""
-    new, errors = [], {}
-    for tool in ("gmail", "calendar", "slack", "jira", "confluence"):
-        try:
-            for ev in await connectors.get(tool).fetch_events():
-                if pipeline.store_event(ev, dedupe=True):
-                    new.append(ev["id"])
-        except Exception as e:
-            errors[tool] = " ".join(str(e).split())[:220]
+    new, errors = await _pull(("gmail", "calendar", "slack", "jira", "confluence"))
     backlog = [r["id"] for r in db.q("SELECT id FROM events WHERE processed=0 ORDER BY occurred_at DESC")]
     results = []
     for eid in backlog[:SYNC_BATCH]:

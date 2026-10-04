@@ -7,9 +7,10 @@ only managers may talk to Stag, who can call every agent.
 import contextvars
 import logging
 import os
+import time
 from datetime import date, datetime, timedelta
 
-from . import actions, connectors, db, graph, llm
+from . import actions, cache, connectors, db, graph, llm
 from .config import AGENTS, settings
 
 log = logging.getLogger("moss.agents")
@@ -52,6 +53,7 @@ async def recall(query: str, account: str = "", since: str = "", until: str = ""
     c = _c()
     facts = await graph.search(query, account or None, since or None, (until + "T23:59:59") if until else None,
                                limit=12, event_ids=c["event_ids"])
+    c["facts"] = c.get("facts", 0) + len(facts)
     for f in facts:
         if f.get("event_title"):
             _src(db.one("SELECT agent_id FROM events WHERE id=?", (f["event_id"],))["agent_id"],
@@ -200,7 +202,7 @@ def build(model=None, *, cache_key: str = "primary") -> dict:
     from google.adk.agents import LlmAgent
     from google.adk.tools.agent_tool import AgentTool
     if settings.gemini_key:
-        os.environ.setdefault("GOOGLE_API_KEY", settings.gemini_key)
+        os.environ["GOOGLE_API_KEY"] = settings.gemini_key   # ADK reads this name; keep it equal to Moss's key
     model = model or settings.gemini_model
     today = date.today().strftime("%A %Y-%m-%d")
     tree = {aid: LlmAgent(name=aid, model=model, description=f"{AGENTS[aid]['tool']}: {AGENTS[aid]['description']}",
@@ -264,18 +266,23 @@ async def _offline_answer(agent_id: str, message: str, c: dict) -> str:
 
 
 async def ask(agent_id: str, message: str, user: dict, session_id: str = "default") -> dict:
-    c = {"user": user, "sources": [], "queued": [], "event_ids": visible_event_ids(user)}
+    c = {"user": user, "sources": [], "queued": [], "event_ids": visible_event_ids(user), "facts": 0}
     token = _ctx.set(c)
+    started, before = time.perf_counter(), dict(cache.stats)
     route, trace, answer = "offline", [], ""
     try:
         if settings.gemini_key:
-            try:
-                answer, trace = await _run(build(), agent_id, message, user, session_id, "primary")
-                route = f"gemini:{settings.gemini_model}"
-            except Exception as e:
-                llm.state["gemini_errors"] += 1
-                llm.state["last_error"] = f"gemini chat: {e}"[:300]
-                log.warning("Gemini chat failed: %s", e)
+            for model in llm.model_chain():
+                try:
+                    answer, trace = await _run(build(model, cache_key=f"gemini:{model}"), agent_id, message, user,
+                                               session_id, model)
+                    if answer:
+                        route = f"gemini:{model}"
+                        llm.state["last_route"] = route
+                        break
+                except Exception as e:
+                    llm.mark_down(model, e)
+                    log.warning("Gemini chat on %s failed, trying next: %s", model, str(e)[:160])
         if not answer and llm.has_fallback():
             try:
                 answer, trace = await _run(build(_fallback_model(), cache_key="fallback"), agent_id, message, user,
@@ -287,7 +294,11 @@ async def ask(agent_id: str, message: str, user: dict, session_id: str = "defaul
                 log.warning("Fallback chat failed: %s", e)
         if not answer:
             answer, route, trace = await _offline_answer(agent_id, message, c), "offline", ["recall"]
+        memory = {"ms": round((time.perf_counter() - started) * 1000),
+                  "cache_hits": cache.stats["hits"] - before["hits"], "cache_misses": cache.stats["misses"] - before["misses"],
+                  "graph_facts": c["facts"], "tools": sorted({s["agent_id"] for s in c["sources"]}),
+                  "store_reads": sum(t in ("open_commitments", "list_meetings", "meeting_notes") for t in trace)}
         return {"agent_id": agent_id, "answer": answer, "sources": c["sources"][:8], "trace": trace,
-                "queued_actions": c["queued"], "route": route}
+                "queued_actions": c["queued"], "route": route, "memory": memory}
     finally:
         _ctx.reset(token)

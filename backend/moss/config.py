@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
+if (ROOT / "env").is_file():  # Windows Explorer makes dot-files awkward; accept a plain "env" file too (.env wins)
+    load_dotenv(ROOT / "env")
 
 
 def env(key: str, default: str = "") -> str:
@@ -14,9 +16,12 @@ def env(key: str, default: str = "") -> str:
 
 class Settings:
     # LLM
-    gemini_key = env("GEMINI_API_KEY")
-    gemini_model = env("GEMINI_MODEL", "gemini-3.8-flash")            # chat + proposals
+    gemini_key = env("GEMINI_API_KEY") or env("GOOGLE_API_KEY")
+    gemini_model = env("GEMINI_MODEL", "gemini-3.5-flash")            # chat + proposals
     gemini_fast_model = env("GEMINI_FAST_MODEL", "gemini-3.5-flash-lite")  # extraction
+    # tried in order when a Gemini model is overloaded (503), rate-limited (429) or unknown
+    gemini_fallback_models = [m.strip() for m in env("GEMINI_FALLBACK_MODELS",
+                                 "gemini-3.6-flash,gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.8-flash").split(",") if m.strip()]
     fallback_base_url = env("FALLBACK_BASE_URL")                      # e.g. http://localhost:3001/v1 (freellmapi)
     fallback_key = env("FALLBACK_API_KEY", "none")
     fallback_model = env("FALLBACK_MODEL")
@@ -45,6 +50,9 @@ class Settings:
     elevenlabs_key = env("ELEVENLABS_API_KEY")
     elevenlabs_voice = env("ELEVENLABS_VOICE_ID")
     elevenlabs_model = env("ELEVENLABS_MODEL", "eleven_flash_v2_5")
+
+    # Background poll of live connectors, in seconds (0 = off). New mail, messages and tickets trigger the pipeline.
+    poll_seconds = int(env("MOSS_POLL_SECONDS", "30") or 0)
 
     seed_dir = ROOT / "data" / "seed"
     cors_origins = [o for o in env("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o]

@@ -1,9 +1,13 @@
 # secrets and local state
 backend/.env
+backend/env
+backend/env.old-*
+backend/.env.bak-*
 backend/credentials.json
 backend/token.json
 backend/data/*.db
 backend/data/*.db-*
+backend/data/*.sqlite3
 # python
 .venv/
 __pycache__/

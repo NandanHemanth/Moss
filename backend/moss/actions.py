@@ -1,4 +1,7 @@
 """The approval queue. Agents propose; a manager approves, edits or skips; only then does anything execute."""
+import re
+from datetime import datetime
+
 from . import connectors, db, graph, notify
 from .config import AGENTS, settings
 from .schemas import KIND_AGENT
@@ -40,10 +43,18 @@ def list_proposals(status: str | None = "pending") -> list[dict]:
 async def _execute(action: dict) -> dict:
     p, kind = action["params"] or {}, action["kind"]
     if kind == "jira.create_issue":
-        return await connectors.jira().create_issue(p.get("summary") or action["title"], p.get("description") or action["detail"],
-                                                    p.get("assignee"))
+        summary = re.sub(r"^[A-Z][A-Z0-9]+-\d+[:\s-]+", "", p.get("summary") or action["title"]).strip()  # drop an invented key
+        return await connectors.jira().create_issue(summary, p.get("description") or action["detail"], p.get("assignee"))
     if kind == "slack.post_message":
-        return await connectors.slack().post_message(p.get("channel") or settings.slack_channel, p.get("text") or action["detail"])
+        channel, text = (p.get("channel") or settings.slack_channel).lstrip("#"), p.get("text") or action["detail"]
+        try:
+            return await connectors.slack().post_message(channel, text)
+        except Exception as e:  # the proposed channel does not exist: use the default one instead of failing the approval
+            default = settings.slack_channel.lstrip("#")
+            if "channel_not_found" not in str(e) or channel == default:
+                raise
+            out = await connectors.slack().post_message(default, text)
+            return {**out, "text": f"{out.get('text', 'Posted')} (#{channel} does not exist)"}
     if kind == "calendar.create_event":
         return await connectors.calendar().create_event(p.get("title") or action["title"], p.get("start") or "",
                                                         int(p.get("duration_minutes") or 30), p.get("attendees") or [],
@@ -53,6 +64,29 @@ async def _execute(action: dict) -> dict:
     if kind == "confluence.create_page":
         return await connectors.confluence().create_page(p.get("title") or action["title"], p.get("body") or action["detail"])
     raise ValueError(f"unknown action kind {kind}")
+
+
+_OWN = {"jira.create_issue": ("jira", "key"), "calendar.create_event": ("calendar", "id"),
+        "confluence.create_page": ("confluence", "id")}
+
+
+def _remember_own(action: dict, result: dict) -> None:
+    """File what Moss just created as a known, already-understood event, so the next sync or poll does not
+    treat Moss's own ticket/page/event as news and propose actions about it (no feedback loops)."""
+    tool, id_field = _OWN.get(action["kind"], (None, None))
+    if not tool or connectors.get(tool).mode != "live" or not result.get(id_field):
+        return
+    p = action["params"] or {}
+    name = p.get("summary") or p.get("title") or action["title"]
+    title = f"{result[id_field]} {name}" if tool == "jira" else name
+    prop = db.one("SELECT event_id FROM proposals WHERE id=?", (action["proposal_id"],))
+    parent = db.one("SELECT account FROM events WHERE id=?", (prop["event_id"],)) if prop and prop["event_id"] else None
+    meta = {"by_moss": True, "key": result.get("key"), "status": "To Do", "assignee": p.get("assignee"), "start": p.get("start")}
+    db.insert("events", {"id": f"{tool}:{result[id_field]}", "source": tool, "agent_id": action["agent_id"], "title": title,
+                         "body": p.get("description") or p.get("body") or action["detail"] or "", "summary": f"Created by Moss after approval. {result.get('text', '')}".strip(),
+                         "occurred_at": datetime.now().isoformat(timespec="seconds"), "account": parent["account"] if parent else None,
+                         "participants": [p["assignee"]] if p.get("assignee") else [], "url": result.get("url"),
+                         "meta": {k: v for k, v in meta.items() if v is not None}, "importance": 2, "processed": 1})
 
 
 def _close_if_done(pid: str) -> None:
@@ -79,6 +113,7 @@ async def decide(action_id: str, decision: str, user: dict, edits: dict | None =
         try:
             result = await _execute(action)
             db.update("actions", action_id, {"status": "executed", "result": result})
+            _remember_own(action, result)
             agent = AGENTS[action["agent_id"]]["name"]
             prop = db.one("SELECT event_id FROM proposals WHERE id=?", (action["proposal_id"],))
             ev = db.one("SELECT title, account FROM events WHERE id=?", (prop["event_id"],)) if prop and prop["event_id"] else None

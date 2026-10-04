@@ -563,3 +563,273 @@ Employees get only events they took part in.
  "errors": {}
 }
 ```
+
+## GET /api/memory — live numbers for the three memory layers (employees: recent_audit is empty, counts are scoped)
+```json
+{
+    "cache": {
+        "hits": 0,
+        "misses": 0,
+        "saved_ms": 0,
+        "namespaces": {}
+    },
+    "graph": {
+        "backend": "local",
+        "facts": 93,
+        "graphiti": {
+            "enabled": false,
+            "ok": 0,
+            "failed": 0,
+            "queued": 0,
+            "last_error": null
+        },
+        "by_type": {
+            "account": 15,
+            "meeting": 12,
+            "customer": 9,
+            "project": 8,
+            "topic": 4,
+            "decision": 3,
+            "commitment": 6,
+            "risk": 9,
+            "gmail": 6,
+            "slack": 3,
+            "jira": 3,
+            "ticket": 3,
+            "confluence": 2,
+            "document": 1,
+            "calendar": 9
+        },
+        "by_tool": {
+            "meeting": 36,
+            "gmail": 17,
+            "slack": 11,
+            "jira": 11,
+            "confluence": 8,
+            "calendar": 10
+        },
+        "cross_tool": [
+            {
+                "account": "Provider migration",
+                "tools": [
+                    "calendar",
+                    "confluence",
+                    "jira",
+                    "meeting",
+                    "slack"
+                ],
+                "facts": 40
+            },
+            {
+                "account": "Harborline Freight",
+                "tools": [
+                    "confluence",
+                    "gmail",
+                    "meeting"
+                ],
+                "facts": 22
+            },
+            {
+                "account": "Pinecrest Health",
+                "tools": [
+                    "gmail",
+                    "meeting",
+                    "slack"
+                ],
+                "facts": 16
+            },
+            {
+                "account": "Lumen Retail",
+                "tools": [
+                    "gmail"
+                ],
+                "facts": 6
+            },
+            {
+                "account": "Payroll integration",
+                "tools": [
+                    "jira"
+                ],
+                "facts": 5
+            }
+        ]
+    },
+    "store": {
+        "tables": {
+            "events": 16,
+            "insights": 18,
+            "commitments": 6,
+            "proposals": 1,
+            "actions": 3,
+            "notifications": 1,
+            "audit": 1
+        },
+        "decisions": {
+            "pending": 3
+        },
+        "recent_audit": [
+            {
+                "ts": "2026-10-04T05:14:49+00:00",
+                "user_id": "maya",
+                "action": "demo.meeting",
+                "detail": "meeting:platform-sync"
+            }
+        ]
+    },
+    "llm": {
+        "mode": "offline",
+        "primary": null,
+        "fast": null,
+        "fallback": null,
+        "gemini_chain": [],
+        "last_route": null,
+        "gemini_errors": 0,
+        "fallback_errors": 0,
+        "last_error": null
+    }
+}
+```
+
+## POST /api/memory/compare body `{"question": str, "with_llm": bool}` — one question answered three ways
+`llm_answer` is null when offline or with_llm=false; otherwise `{text, first_ms, repeat_ms, route}` or `{error}`.
+```json
+{
+    "question": "What did we discuss with Harborline last month?",
+    "raw": {
+        "documents": 6,
+        "chars": 2641,
+        "ms": 0.18,
+        "sample": [
+            "Harborline quarterly review",
+            "Payroll integration before the January cycle",
+            "#platform \u00b7 summarisation latency",
+            "PLAT-131 Payroll export: CSV and API formats",
+            "Harborline Freight \u2014 account page"
+        ],
+        "tools": [
+            "confluence",
+            "gmail",
+            "jira",
+            "meeting",
+            "slack"
+        ],
+        "tokens": 660
+    },
+    "graph": {
+        "facts": 12,
+        "chars": 1290,
+        "ms": 0.87,
+        "tools": [
+            "confluence",
+            "gmail",
+            "meeting"
+        ],
+        "sample": [
+            {
+                "fact": "Risk raised in Payroll integration before the January cycle: Harborline has not received the payroll integration scope that was promised",
+                "date": "2026-10-03",
+                "source": "Payroll integration before the January cycle"
+            },
+            {
+                "fact": "Decision in Harborline quarterly review: Pilot payroll integration with Harborline's Gulf region first",
+                "date": "2026-09-13",
+                "source": "Harborline quarterly review"
+            },
+            {
+                "fact": "Marcus Lee committed in Harborline quarterly review: Send the payroll integration scope to Harborline (due 2026-10-09)",
+                "date": "2026-09-13",
+                "source": "Harborline quarterly review"
+            },
+            {
+                "fact": "Sam Ortiz committed in Harborline quarterly review: Confirm the payroll export format with Harborline's IT team",
+                "date": "2026-09-13",
+                "source": "Harborline quarterly review"
+            },
+            {
+                "fact": "Risk raised in Harborline quarterly review: Harborline's January payroll cycle is a hard deadline",
+                "date": "2026-09-13",
+                "source": "Harborline quarterly review"
+            },
+            {
+                "fact": "Payroll integration before the January cycle is about Harborline Freight: Dana at Harborline is still waiting for the payroll integration scope and asks for a call this week.",
+                "date": "2026-10-03",
+                "source": "Payroll integration before the January cycle"
+            }
+        ],
+        "tokens": 322
+    },
+    "cache": {
+        "cold_ms": 0.87,
+        "warm_ms": 0.029,
+        "speedup": 30.1
+    },
+    "store": {
+        "open_commitments": [
+            {
+                "text": "Send the payroll integration scope to Harborline",
+                "owner": "Marcus Lee",
+                "due": "2026-10-09",
+                "account": "Harborline Freight",
+                "status": "open"
+            },
+            {
+                "text": "Confirm the payroll export format with Harborline's IT team",
+                "owner": "Sam Ortiz",
+                "due": null,
+                "account": "Harborline Freight",
+                "status": "open"
+            }
+        ],
+        "approved_actions": 0,
+        "audit_entries": 1
+    },
+    "llm_answer": null,
+    "context_saving_percent": 51
+}
+```
+
+## POST /api/ask now also returns `memory`
+```json
+{
+ "ms": 1,
+ "cache_hits": 0,
+ "cache_misses": 1,
+ "graph_facts": 12,
+ "tools": [
+  "firefly",
+  "owl",
+  "raven"
+ ],
+ "store_reads": 0
+}
+```
+
+## GET /api/status now also returns `backlog` (number) and `watch`
+```json
+{
+ "backlog": 0,
+ "watch": {
+  "enabled": false,
+  "every_seconds": 30,
+  "runs": 0,
+  "last_run": null,
+  "last_new": 0,
+  "triggered": 0,
+  "errors": {},
+  "watching": []
+ },
+ "llm": {
+  "mode": "offline",
+  "primary": null,
+  "fast": null,
+  "fallback": null,
+  "gemini_chain": [],
+  "last_route": null,
+  "gemini_errors": 0,
+  "fallback_errors": 0,
+  "last_error": null
+ }
+}
+```
+
+Insights may now have kind `request` in addition to decision / commitment / risk.

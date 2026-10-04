@@ -37,7 +37,14 @@ Copy `.env.example` to `.env` to change it. Every request carries `X-Moss-User: 
 `?user=<id>` because `EventSource` cannot send headers.
 
 Choices remembered in `localStorage`: `moss.user` (demo user, default `maya`), `moss.theme` (`light` | `dark`),
-`moss.voice` (`on` | `off`, default off).
+`moss.voice` (`on` | `off`, default off), `moss.motion` (`on` | `off`, default on).
+
+**Motion preference.** Animation is an in-app choice, not the OS one: it defaults to **on** for everyone and
+deliberately ignores `prefers-reduced-motion` (Windows with "Animation effects" turned off used to get a frozen
+grove and no panel fade). The "Motion on / Motion off" toggle in the dark theme's top bar flips it; the value is
+mirrored as `data-motion="on|off"` on `<html>`. With motion off the grove shows one still frame (no render loop)
+and every CSS transition/animation that is keyed on `[data-motion="off"]` is disabled. No stylesheet uses
+`@media (prefers-reduced-motion)` any more.
 
 ## What is where
 
@@ -74,6 +81,8 @@ src/
     Ask.tsx                    "/ask"  chat with one agent
     Timeline.tsx               "/timeline"  unified timeline, account + source filters
     Graph.tsx                  "/graph"  force-directed knowledge graph
+    Memory.tsx                 "/memory"  the three memory layers (cache, knowledge graph, SQLite) with live numbers
+                               from GET /api/memory, and "Prove it": POST /api/memory/compare for one question
   grove/                       the 3D "Enchanted grove" scene (its own lazy chunk, see below)
   styles/
     theme.css                  design tokens for both themes + components ported from the mockup
@@ -161,12 +170,15 @@ at level 0: about 215k triangles, about 100 draw calls plus the bloom passes, ab
 
 **Fallback and robustness.**
 
-- No WebGL 2, context creation fails, the chunk fails to load, or the context is lost later: the flat SVG
-  `Scenery` is shown instead (never both), without console errors.
-- `prefers-reduced-motion`: one still frame, no camera sway or parallax, animals stationary; it is redrawn only
-  on resize or when the showcase is toggled.
-- The loop pauses while the tab is hidden. Leaving the dark theme disposes every geometry, material and
-  texture and releases the WebGL context.
+- No WebGL 2, context creation fails or the chunk fails to load: the flat SVG `Scenery` is shown instead
+  (never both), without console errors. A context that is lost later is given 4 s to be restored (the loop then
+  resumes); only if it stays lost does the SVG scenery take over.
+- Motion off (the in-app toggle, not the OS setting): one still frame, no camera sway or parallax, animals
+  stationary; it is redrawn only on resize or when the showcase is toggled.
+- The loop pauses while the tab is hidden and resumes on `visibilitychange`, `pageshow` or window focus; a 2 s
+  watchdog restarts it if it is ever found stopped while motion is on and the page is visible. The quality
+  governor only lowers the level, it never stops the loop. Leaving the dark theme disposes every geometry,
+  material and texture and releases the WebGL context.
 
 **Debug switches** (query string, harmless): `?grove=high|medium|low` pins the quality, `?grove=govern` starts at
 full quality with only the governor, `?grove=off` forces the SVG fallback, `?groveT=20` starts the scene 20

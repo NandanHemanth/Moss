@@ -239,15 +239,24 @@ class LiveConfluence(_Atlassian):
         return f"{(base or self.site + '/wiki').rstrip('/')}{path}" if path else None
 
     async def space_id(self) -> str:
+        """Resolve CONFLUENCE_SPACE to a space id. Keys are case-sensitive upstream, so a case-only mismatch is forgiven."""
         if self._space_id is None:
             data = await self._call("GET", "/wiki/api/v2/spaces", params={"keys": self.space, "limit": 1})
-            if not data.get("results"):
-                raise RuntimeError(f"Confluence space with key “{self.space}” not found (check CONFLUENCE_SPACE)")
-            self._space_id = str(data["results"][0]["id"])
+            hit = (data.get("results") or [None])[0]
+            if hit is None:
+                spaces = (await self._call("GET", "/wiki/api/v2/spaces", params={"limit": 250})).get("results") or []
+                hit = next((s for s in spaces if str(s.get("key", "")).casefold() == self.space.casefold()), None)
+                if hit is None:
+                    keys = ", ".join(str(s.get("key")) for s in spaces if not str(s.get("key", "")).startswith("~")) or "none"
+                    raise RuntimeError(f"Confluence space with key “{self.space}” not found (check CONFLUENCE_SPACE; "
+                                       f"available: {keys})")
+                self.space = str(hit["key"])
+            self._space_id = str(hit["id"])
         return self._space_id
 
     async def search(self, text: str = "", limit: int = 10) -> list[dict]:
         words = keywords(text)
+        await self.space_id()  # also corrects the case of the configured key
         cql = f'space = "{self.space}" AND type = page'
         cql += " AND (" + " OR ".join(f'text ~ "{w}"' for w in words) + ")" if words else " ORDER BY lastmodified DESC"
         data = await self._call("GET", "/wiki/rest/api/search",

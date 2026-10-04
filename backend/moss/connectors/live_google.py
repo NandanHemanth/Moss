@@ -129,7 +129,8 @@ def message_event(msg: dict) -> dict:
     body = plain_text(msg.get("payload")) or html.unescape(msg.get("snippet") or "")
     return {"id": f"gmail:{msg['id']}", "source": "gmail", "title": _header(msg, "Subject") or "(no subject)", "body": body,
             "occurred_at": _message_time(msg), "account": None, "participants": [_sender(msg)], "url": _message_url(msg),
-            "meta": {"to": _header(msg, "To") or None, "thread_id": msg.get("threadId")}}
+            "meta": {"to": _header(msg, "To") or None, "thread_id": msg.get("threadId"),
+                     "from_email": parseaddr(_header(msg, "From"))[1] or None}}
 
 
 def _wall(point: dict | None) -> str | None:

@@ -8,10 +8,10 @@ import { AgentAvatar, useAgentDirectory } from "../components/AgentAvatar";
 import { Dots, Loading } from "../components/States";
 import { MOSS_QUERY_KEY, useRole } from "../hooks/useMoss";
 import { compactMode, modeTone } from "../lib/agents";
-import { isHttpUrl, plural } from "../lib/format";
+import { formatMs, isHttpUrl, plural } from "../lib/format";
 import { errorMessage } from "../providers/http";
 import { useUserId } from "../session";
-import type { Agent, AskResponse } from "../types";
+import type { Agent, AskMemory, AskResponse } from "../types";
 
 const SUGGESTIONS = [
   "What did we discuss with Harborline last month?",
@@ -98,9 +98,25 @@ function Answer({ text }: { text: string }) {
   return <>{blocks.length ? blocks : <p className="small">(empty answer)</p>}</>;
 }
 
+/** "Memory: 9 graph facts from 3 tools · 1 cache hit · 12 ms" — parts that are zero or missing are left out. */
+export function memoryLine(m: AskMemory | null | undefined): string | null {
+  if (!m || typeof m !== "object") return null;
+  const parts: string[] = [];
+  const facts = Number(m.graph_facts) || 0;
+  const tools = Array.isArray(m.tools) ? m.tools.length : 0;
+  if (facts > 0) parts.push(`${plural(facts, "graph fact")}${tools > 0 ? ` from ${plural(tools, "tool")}` : ""}`);
+  const hits = Number(m.cache_hits) || 0;
+  if (hits > 0) parts.push(plural(hits, "cache hit"));
+  const reads = Number(m.store_reads) || 0;
+  if (reads > 0) parts.push(plural(reads, "SQLite read"));
+  if (typeof m.ms === "number" && m.ms > 0) parts.push(formatMs(m.ms));
+  return parts.length ? `Memory: ${parts.join(" · ")}` : null;
+}
+
 function AgentMessage({ res, isManager }: { res: AskResponse; isManager: boolean }) {
   const { nameOf } = useAgentDirectory();
   const queued = res.queued_actions ?? [];
+  const memory = memoryLine(res.memory);
   return (
     <div className="msg" data-role="agent" data-agent={res.agent_id}>
       <Answer text={res.answer || ""} />
@@ -138,6 +154,11 @@ function AgentMessage({ res, isManager }: { res: AskResponse; isManager: boolean
         </span>
         {res.trace?.length ? <span title="Tools the agent used"> · tools: {res.trace.join(", ")}</span> : null}
       </div>
+      {memory ? (
+        <div className="trace small memory-line" data-testid="ask-memory" title="What the cache, the knowledge graph and SQLite contributed to this answer">
+          {memory}
+        </div>
+      ) : null}
     </div>
   );
 }

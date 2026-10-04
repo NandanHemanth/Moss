@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class Insight(BaseModel):
-    kind: Literal["decision", "commitment", "risk"]
+    kind: Literal["decision", "commitment", "risk", "request"]
     text: str = Field(description="One plain sentence.")
     owner: Optional[str] = Field(default=None, description="Person responsible, if stated.")
     due: Optional[str] = Field(default=None, description="ISO date YYYY-MM-DD, if stated.")

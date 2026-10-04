@@ -92,7 +92,7 @@ To connect real services, follow [`docs/03-setup.md`](docs/03-setup.md). After e
 
 ```powershell
 cd backend
-python -m pytest -q      # 51 tests, all offline
+python -m pytest -q      # 55 tests, all offline
 ```
 
 ## Docs
@@ -101,10 +101,12 @@ python -m pytest -q      # 51 tests, all offline
 - [`docs/01-decisions-and-plan.md`](docs/01-decisions-and-plan.md) — decisions, architecture, scope
 - [`docs/02-api-contract.md`](docs/02-api-contract.md) — every endpoint with sample responses
 - [`docs/03-setup.md`](docs/03-setup.md) — connecting Gemini, Neo4j, Atlassian, Slack, Google, ElevenLabs
+- [`docs/04-demo-and-memory.md`](docs/04-demo-and-memory.md) — demo runbook, the email-to-ticket test, and why three memory layers
 
 ## Honest status
 
-Tested here: the full pipeline, roles, approvals and UI in mock/offline mode, and the ADK agent loop
-with a stand-in model. **Not yet run against real accounts:** Gemini, Graphiti/Neo4j, the live
-connectors and ElevenLabs. Their request shapes are unit-tested against the official API specs, but the
-first live run may surface fixes.
+Run live on 4 October 2026 (Gemini free tier, a real Jira site and Slack workspace): the event pipeline
+(understand → propose → approve → real Jira ticket and Slack post), agent chat through Google ADK with model
+fallback, Confluence lookup, and ElevenLabs speech. **Not yet run live:** Gmail and Calendar on a second machine,
+Graphiti on Neo4j, and the AG-UI endpoint. Free-tier Gemini limits are tight (5 requests a minute on one model
+when tested), which is why Moss walks a list of models and caches answers.

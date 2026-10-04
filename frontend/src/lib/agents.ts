@@ -26,6 +26,7 @@ export const TOOL_AGENT: Record<string, string> = {
   jira: "fox",
   confluence: "tortoise",
   meetings: "owl",
+  meeting: "owl",
 };
 
 const FALLBACK_COLORS = ["#737d77", "#3c8aa3", "#8c6a3a", "#a05a7c"];
