@@ -300,3 +300,15 @@ async def test_voice_falls_back_to_default_voice_and_caches_sfx(monkeypatch, tmp
     before = len(calls)
     assert await voice.sound_effect("owl") == b"ID3-audio" and len(calls) == before   # second time comes from disk
     assert await voice.sound_effect("dragon") is None
+
+
+def test_grove_music_serves_the_file_or_204(client, monkeypatch, tmp_path):
+    from moss import api
+    monkeypatch.setattr(api.settings, "grove_music", str(tmp_path / "missing.mp3"), raising=False)
+    assert client.get("/api/music", headers=SAM).status_code == 204
+    track = tmp_path / "grove.mp3"
+    track.write_bytes(b"ID3-music")
+    monkeypatch.setattr(api.settings, "grove_music", str(track), raising=False)
+    r = client.get("/api/music", headers=SAM)
+    assert r.status_code == 200 and r.content == b"ID3-music" and r.headers["content-type"] == "audio/mpeg"
+

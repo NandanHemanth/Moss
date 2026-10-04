@@ -56,6 +56,10 @@ class Settings:
     access_code = env("MOSS_ACCESS_CODE")                 # when set, every API call must carry it (X-Moss-Code)
     frontend_dist = Path(env("MOSS_FRONTEND_DIST", str(ROOT.parent / "frontend" / "dist")))
 
+    # Music for "View the grove": an audio file. GROVE_MUSIC wins; otherwise the first .mp3 in backend/data/music
+    # or in the backend folder itself. No file = no music (the toggle says so).
+    grove_music = env("GROVE_MUSIC")
+
     # Voice
     elevenlabs_key = env("ELEVENLABS_API_KEY")
     elevenlabs_voice = env("ELEVENLABS_VOICE_ID")

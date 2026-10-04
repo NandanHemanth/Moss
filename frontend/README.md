@@ -94,7 +94,7 @@ src/
     CommitmentsTable.tsx       open commitments with "Done" (and undo); first 5, then "Show all (n)"
     Whispers.tsx               notification feed (right rail)
     GroveBackdrop.tsx          dark theme backdrop: lazy-loads the 3D grove, falls back to Scenery; creature clicks
-    GroveMusic.tsx             "View the grove" music: the YouTube IFrame mini-player (showcase mode only)
+    GroveMusic.tsx             "View the grove" music: the audio file from GET /api/music (showcase mode only)
     Scenery.tsx                flat forest SVG + fireflies; only the fallback when WebGL is unavailable
     States.tsx                 loading / empty / error blocks
   pages/
@@ -181,14 +181,12 @@ scene (`--band`) stays visible at the bottom, where the animals walk. On smaller
 before over the fixed scene. **View the grove** (top bar, dark theme only) fades the panels to near-invisible
 and brightens the scene; click it again or press Escape to come back.
 
-**Music in "View the grove".** Entering showcase mode starts one track in the official YouTube IFrame Player
-(`components/GroveMusic.tsx`): a small visible card docked bottom-right (220×200 player plus a caption linking to
-the video), host `youtube-nocookie.com`, looped, volume 35. Nothing is downloaded or extracted, and the player
-stays visible because YouTube's terms require it. To change the track, edit `GROVE_MUSIC_VIDEO_ID` (and the
-caption next to it) in `src/config.ts`; the video must allow embedding. "Music on / Music off" sits next to "Back
-to Moss" and is remembered. Leaving showcase mode pauses and removes the player; the light theme and normal dark
-mode request nothing from YouTube. If the API script or the video cannot load, the card is hidden and the toggle
-reads "Music unavailable".
+**Music in "View the grove".** Entering showcase mode plays one audio file, looped at low volume with a short
+fade in and out (`components/GroveMusic.tsx`). The backend serves it at `GET /api/music`: the path in
+`GROVE_MUSIC`, else the first `.mp3` in `backend/data/music`, else the first `.mp3` in the `backend` folder.
+Nothing is shown on the page. "Music on / Music off" sits next to "Back to Moss" and is remembered; leaving
+showcase mode stops the music and rewinds it. With no file on the server the toggle reads "Music unavailable".
+Use a track you have the rights to before deploying publicly or committing the file.
 
 **Creature sounds.** In showcase mode the canvas takes pointer events: clicking an animal (generous invisible
 hit spheres, `pick()` in `grove/index.ts`) plays `GET /api/sfx/{stag|fox|owl|raven|tortoise|firefly}` at volume

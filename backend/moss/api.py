@@ -4,6 +4,7 @@ import logging
 import time
 from collections import Counter
 from datetime import datetime, timedelta
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -281,6 +282,28 @@ async def sfx(name: str, _: dict = Depends(current_user)):
     if not audio:
         return Response(status_code=204)
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
+
+
+def music_file() -> Path | None:
+    """The grove's music: GROVE_MUSIC, else the first .mp3 in backend/data/music, else in the backend folder."""
+    if settings.grove_music:
+        path = Path(settings.grove_music)
+        return path if path.is_file() else None
+    root = Path(__file__).resolve().parents[1]
+    for folder in (root / "data" / "music", root):
+        found = sorted(folder.glob("*.mp3"))
+        if found:
+            return found[0]
+    return None
+
+
+@app.get("/api/music")
+async def music(_: dict = Depends(current_user)):
+    """Music for "View the grove". 204 = no audio file on this machine."""
+    path = music_file()
+    if not path:
+        return Response(status_code=204)
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/api/stream")

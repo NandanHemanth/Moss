@@ -1,211 +1,147 @@
-// Music for "View the grove": the official YouTube IFrame Player in a small VISIBLE card docked bottom-right.
-// Nothing is downloaded or extracted; the video plays in YouTube's own player (privacy-enhanced host), which
-// YouTube's terms require to stay visible and at least 200x200 px. Nothing is requested from YouTube until
-// showcase mode is on with music enabled, and the player is removed again when showcase mode ends.
-// Any failure (offline, blocked, embedding disabled) hides the card quietly and reports "unavailable".
-import { useEffect, useRef, useState } from "react";
-import { GROVE_MUSIC_CAPTION, GROVE_MUSIC_VIDEO_ID, GROVE_MUSIC_VOLUME } from "../config";
+// Music for "View the grove": one audio file served by the backend (GET /api/music), looped at low volume.
+// Nothing is shown on the page; the "Music on / Music off" toggle next to "Back to Moss" is the only control.
+// The file is fetched the first time the grove is viewed with music on, and kept for the rest of the visit.
+// 204 (no file on the server) or any failure reports "unavailable" to the toggle.
+import { useEffect, useRef } from "react";
+import { GROVE_MUSIC_VOLUME } from "../config";
+import { rawRequest } from "../providers/http";
 
-interface YTPlayer {
-  playVideo(): void;
-  pauseVideo(): void;
-  setVolume(v: number): void;
-  destroy(): void;
-}
-interface YTApi {
-  Player: new (el: HTMLElement, opts: { events?: Record<string, (e: { data?: number }) => void> }) => YTPlayer;
-}
-declare global {
-  interface Window {
-    YT?: YTApi;
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
+const FADE_IN_MS = 1400;
+const FADE_OUT_MS = 600;
 
-const API_SRC = "https://www.youtube.com/iframe_api";
-const EMBED_HOST = "https://www.youtube-nocookie.com";
-const PLAYER = { width: 220, height: 200 };
-/** How long the API script and the player may take before the music is treated as unavailable. */
-const LOAD_TIMEOUT_MS = 12_000;
-const FADE_MS = 650;
-
-let apiPromise: Promise<YTApi> | null = null;
-function loadApi(): Promise<YTApi> {
-  if (window.YT?.Player) return Promise.resolve(window.YT);
-  if (apiPromise) return apiPromise;
-  apiPromise = new Promise<YTApi>((resolve, reject) => {
-    const script = document.createElement("script");
-    const fail = (why: string) => {
-      window.clearTimeout(timer);
-      script.remove();
-      apiPromise = null; // allow another try the next time the grove is opened
-      reject(new Error(why));
-    };
-    const timer = window.setTimeout(() => fail("timeout"), LOAD_TIMEOUT_MS);
-    const earlier = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
+let trackUrl: Promise<string | null> | null = null;
+/** The music as an object URL, or null when the server has none. Fetched once; a failure can be retried. */
+function loadTrack(): Promise<string | null> {
+  if (!trackUrl) {
+    trackUrl = (async () => {
       try {
-        earlier?.();
+        const res = await rawRequest("/api/music", { headers: { Accept: "audio/mpeg" } });
+        if (res.status !== 200) return null;
+        const blob = await res.blob();
+        return blob.size > 0 ? URL.createObjectURL(blob) : null;
       } catch {
-        /* not ours */
+        return null;
       }
-      window.clearTimeout(timer);
-      if (window.YT?.Player) resolve(window.YT);
-      else fail("no player");
-    };
-    script.src = API_SRC;
-    script.async = true;
-    script.onerror = () => fail("blocked");
-    document.head.appendChild(script);
-  });
-  return apiPromise;
-}
-
-export function embedUrl(id: string = GROVE_MUSIC_VIDEO_ID): string {
-  const q = new URLSearchParams({
-    enablejsapi: "1",
-    autoplay: "1",
-    loop: "1",
-    playlist: id, // a single video only loops when it is also its own playlist
-    playsinline: "1",
-    controls: "1",
-    rel: "0",
-    origin: window.location.origin,
-  });
-  return `${EMBED_HOST}/embed/${encodeURIComponent(id)}?${q.toString()}`;
+    })();
+    void trackUrl.then((url) => {
+      if (!url) trackUrl = null; // nothing usable: try again the next time the grove is opened
+    });
+  }
+  return trackUrl;
 }
 
 /** `active`: showcase mode is on. `enabled`: the Music toggle. `onUnavailable(true)` when it cannot play. */
 export function GroveMusic({ active, enabled, onUnavailable }: { active: boolean; enabled: boolean; onUnavailable: (unavailable: boolean) => void }) {
-  const holder = useRef<HTMLDivElement>(null);
-  const player = useRef<YTPlayer | null>(null);
-  const ready = useRef(false);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const fade = useRef(0);
   const want = active && enabled;
   const wantRef = useRef(want);
   wantRef.current = want;
-  const [mounted, setMounted] = useState(false); // the card (and its iframe) exists
-  const [visible, setVisible] = useState(false);
-  const [failed, setFailed] = useState(false);
   const report = useRef(onUnavailable);
   report.current = onUnavailable;
 
-  // Create the card when music is first wanted; play / pause with the toggle and the showcase.
-  useEffect(() => {
-    if (want && !failed) {
-      setMounted(true);
-      const raf = requestAnimationFrame(() => setVisible(true));
-      if (ready.current) {
-        try {
-          player.current?.playVideo();
-        } catch {
-          /* the player went away */
-        }
-      }
-      return () => cancelAnimationFrame(raf);
-    }
-    setVisible(false);
-    if (ready.current) {
-      try {
-        player.current?.pauseVideo();
-      } catch {
-        /* the player went away */
-      }
-    }
-  }, [want, failed]);
+  // Move the volume towards `to`; `then` runs when it gets there. A timer, not animation frames, so a fade
+  // still finishes when the tab is in the background.
+  const fadeTo = (el: HTMLAudioElement, to: number, ms: number, then?: () => void) => {
+    window.clearInterval(fade.current);
+    const from = el.volume;
+    const start = performance.now();
+    const step = () => {
+      const t = ms <= 0 ? 1 : Math.min(1, (performance.now() - start) / ms);
+      el.volume = Math.max(0, Math.min(1, from + (to - from) * t));
+      if (t < 1) return;
+      window.clearInterval(fade.current);
+      then?.();
+    };
+    fade.current = window.setInterval(step, 40);
+  };
 
-  // Leaving showcase mode: after the fade, remove the player altogether (normal dark mode loads nothing).
+  // Play with the toggle and the showcase; fade out and pause otherwise.
   useEffect(() => {
-    if (active) return;
-    const t = window.setTimeout(() => {
-      setMounted(false);
-      setFailed(false);
-      report.current(false);
-    }, FADE_MS);
-    return () => window.clearTimeout(t);
-  }, [active]);
-
-  // The player itself. The iframe is made by hand (React does not manage it) so its attributes are exact.
-  useEffect(() => {
-    if (!mounted) return;
-    const el = holder.current;
-    if (!el) return;
     let cancelled = false;
-    const giveUp = () => {
-      if (cancelled) return;
-      setFailed(true);
-      setVisible(false);
-      setMounted(false);
-      report.current(true);
+    let retry: (() => void) | null = null;
+    const clearRetry = () => {
+      if (!retry) return;
+      window.removeEventListener("pointerdown", retry, true);
+      window.removeEventListener("keydown", retry, true);
+      retry = null;
     };
 
-    const frame = document.createElement("iframe");
-    frame.width = String(PLAYER.width);
-    frame.height = String(PLAYER.height);
-    frame.title = `Grove music: ${GROVE_MUSIC_CAPTION.title}`;
-    frame.allow = "autoplay; encrypted-media";
-    frame.referrerPolicy = "strict-origin-when-cross-origin";
-    frame.setAttribute("frameborder", "0");
-    frame.dataset.videoId = GROVE_MUSIC_VIDEO_ID;
-    frame.src = embedUrl();
-    el.appendChild(frame);
+    if (!want) {
+      const el = audio.current;
+      if (el && !el.paused) fadeTo(el, 0, FADE_OUT_MS, () => el.pause());
+      return;
+    }
 
-    const timer = window.setTimeout(() => {
-      if (!ready.current) giveUp();
-    }, LOAD_TIMEOUT_MS);
-
-    loadApi()
-      .then((YT) => {
-        if (cancelled) return;
-        player.current = new YT.Player(frame, {
-          events: {
-            onReady: () => {
-              if (cancelled) return;
-              ready.current = true;
-              window.clearTimeout(timer);
-              try {
-                player.current?.setVolume(GROVE_MUSIC_VOLUME);
-                if (wantRef.current) player.current?.playVideo();
-                else player.current?.pauseVideo();
-              } catch {
-                giveUp();
-              }
-            },
-            // 2 bad id, 5 player error, 100 removed / private, 101 and 150 embedding disabled
-            onError: () => giveUp(),
-          },
-        });
-      })
-      .catch(() => giveUp());
+    void loadTrack().then((url) => {
+      if (cancelled || !wantRef.current) return;
+      if (!url) {
+        report.current(true);
+        return;
+      }
+      let el = audio.current;
+      if (!el) {
+        el = new Audio(url);
+        el.loop = true;
+        el.preload = "auto";
+        el.volume = 0;
+        el.onerror = () => report.current(true);
+        audio.current = el;
+      }
+      const player = el;
+      const start = () => {
+        player
+          .play()
+          .then(() => {
+            clearRetry();
+            if (!cancelled && wantRef.current) fadeTo(player, GROVE_MUSIC_VOLUME, FADE_IN_MS);
+          })
+          .catch(() => {
+            // The browser wants a click first (rare: "View the grove" is itself a click). Try again on the next one.
+            if (cancelled || retry) return;
+            retry = () => {
+              clearRetry();
+              if (!cancelled && wantRef.current) start();
+            };
+            window.addEventListener("pointerdown", retry, true);
+            window.addEventListener("keydown", retry, true);
+          });
+      };
+      start();
+    });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
-      ready.current = false;
-      try {
-        player.current?.destroy();
-      } catch {
-        /* never became a player */
-      }
-      player.current = null;
-      el.replaceChildren();
+      clearRetry();
     };
-  }, [mounted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [want]);
 
-  if (!mounted) return null;
-  return (
-    <aside className="grove-music" data-visible={visible ? "yes" : "no"} aria-label="Grove music" aria-hidden={!visible} data-testid="grove-music">
-      <div ref={holder} className="grove-music-player" style={{ width: PLAYER.width, height: PLAYER.height }} />
-      <a
-        className="grove-music-cap"
-        href={`https://www.youtube.com/watch?v=${encodeURIComponent(GROVE_MUSIC_VIDEO_ID)}`}
-        target="_blank"
-        rel="noreferrer noopener"
-        tabIndex={visible ? 0 : -1}
-        title="Open the video on YouTube"
-      >
-        <b>{GROVE_MUSIC_CAPTION.title}</b>
-        <span>{GROVE_MUSIC_CAPTION.channel}</span>
-      </a>
-    </aside>
+  // Leaving the grove: after the fade, rewind so the next visit starts from the beginning.
+  useEffect(() => {
+    if (active) return;
+    const t = window.setTimeout(() => {
+      const el = audio.current;
+      if (el) {
+        window.clearInterval(fade.current);
+        el.pause();
+        el.volume = 0;
+        el.currentTime = 0;
+      }
+      report.current(false);
+    }, FADE_OUT_MS + 50);
+    return () => window.clearTimeout(t);
+  }, [active]);
+
+  // The page is going away (theme switch, sign-out): stop at once.
+  useEffect(
+    () => () => {
+      window.clearInterval(fade.current);
+      audio.current?.pause();
+      audio.current = null;
+    },
+    [],
   );
+
+  return null;
 }
